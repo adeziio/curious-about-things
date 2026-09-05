@@ -1,0 +1,69 @@
+{
+    "channel": {
+        "name": "Curious About Things",
+        "description": "Short-form vertical videos about anything genuinely fascinating - science, history, animals, geography, technology, psychology, space, mysteries, unusual events, human behavior, or any other topic worth being curious about."
+    },
+    "content_generation": {
+        "instruction": "Create one original concept for a Curious About Things Short. You have complete creative freedom over the topic - pick any subject that is genuinely fascinating, surprising, or delightful. The ONLY fixed requirement is the output structure and the storytelling quality.",
+        "topics": [
+            "science",
+            "history",
+            "animals",
+            "geography",
+            "technology",
+            "psychology",
+            "space",
+            "mysteries",
+            "unusual events",
+            "human behavior",
+            "curious horror (creepy real events, disappearances, disturbing history, strange places, unsolved mysteries, paranormal claims, dark folklore, unexplained events)",
+            "anything else genuinely fascinating"
+        ],
+        "storytelling": [
+            "HOOK: the first sentence must immediately grab the viewer - a surprising claim, a vivid moment, or an intriguing question.",
+            "SETUP: quickly establish the situation so the viewer cares.",
+            "ESCALATION: build the story - raise the stakes, add detail, deepen the intrigue.",
+            "SURPRISING REVEAL: deliver the payoff the story has been building toward.",
+            "CONNECTION: tie it back to something the viewer feels or recognizes.",
+            "TWIST: land a memorable moment, clever observation, or unexpected angle.",
+            "CLOSING: end each episode with the most satisfying final thought for that particular story. A curiosity-driven question is encouraged when it naturally fits, but it is not mandatory. Do not manufacture a question just for engagement.",
+            "NATURAL QUESTIONS: For unresolved stories, a question can naturally work: 'So what really happened that night?', 'How did he disappear without leaving a trace?', 'Would you actually go there knowing what happened?'. If the narration already establishes what happened, do not ask the viewer to guess the same thing.",
+            "NATURAL STATEMENTS: For other topics, a strong final statement may be better. The ending should feel like a natural conclusion to the story, not a forced social-media CTA.",
+            "AVOID: 'What do you think?', 'Pretty crazy, right?', 'What would you do?', 'Let us know in the comments.', 'Follow for more.', 'And now you know.'"
+        ],
+        "narration_rules": [
+            "This structure is a guideline, not a rigid formula - adapt it naturally to the topic.",
+            "Never open with generic introductions like 'Today we're going to talk about...' or 'Let me tell you about...'.",
+            "Use short, punchy sentences with natural pauses.",
+            "Escalate the story rather than presenting disconnected facts.",
+            "Use humor or clever phrasing when appropriate.",
+            "Never end with generic lines like 'And that's why...' or 'Pretty amazing, right?' unless they genuinely fit.",
+            "The result must feel like a complete mini-story, not an article or a list of facts.",
+            "NARRATION STYLE: Always energetic, enthusiastic, curious, expressive, and engaging. Sound genuinely excited to share fascinating information with the viewer. Communicate: 'This is fascinating, and you need to hear this.'",
+            "Use natural emphasis and excitement for surprising or important moments. This applies to ALL topics, including curious horror.",
+            "Do not make the narration overly dramatic, cheesy, robotic, or like a commercial.",
+            "NARRATION PACING: Flow at a natural speaking pace. Do not slow down, stretch, artificially pause, or alter delivery just to reach the target duration. Content comes first - duration should naturally follow from the amount of meaningful information being presented."
+        ],
+        "narration_target_seconds": 58,
+        "words_per_second": 2.9,
+        "visual_rules": [
+            "Generate enough visual search queries to give the viewer a new visual every 3-4 seconds (for a 58-second video, that means 14-19 queries; for a 40-second video, 10-13 queries).",
+            "Each query describes what should APPEAR in the footage - concrete subjects, objects, places, or actions.",
+            "Queries are plain search phrases, for example: 'person scrolling phone in bed', 'phone blue light at night', 'tired person working'.",
+            "Each query should cover roughly 3-4 seconds of narration - visual changes should follow the story, not split it into equal chunks.",
+            "Do NOT include camera movements, cinematic shot descriptions, animation instructions, lighting specifications, or character descriptions.",
+            "Queries must be findable on a stock footage site - prefer common, well-shot subjects."
+        ],
+        "creative_directions": [
+            "This is an EDUCATION channel. Content must be based on real, verifiable facts.",
+            "Do not invent stories, experiments, statistics, events, quotes, discoveries, or historical details just to make an episode more interesting.",
+            "Every factual claim used in the narration should be supported by reliable information.",
+            "If a claim cannot be reasonably verified, do not use it. Choose another fact, angle, or topic.",
+            "For mysterious, paranormal, or unexplained subjects, clearly distinguish between documented facts, reported claims, theories, speculation, and folklore.",
+            "Never present speculation, rumors, or internet stories as established fact.",
+            "Core principle: Interesting because it is true - not interesting because it was invented.",
+            "Surprise the viewer with an angle or connection they have not heard before.",
+            "Specific beats generic - concrete details make curiosity contagious."
+        ]
+    }
+}

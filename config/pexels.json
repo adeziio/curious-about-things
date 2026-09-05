@@ -1,0 +1,19 @@
+{
+    "enabled": true,
+
+    "base_url": "https://www.pexels.com",
+
+    "headless": false,
+    "attach_to_existing_chrome": true,
+    "debugging_address": "127.0.0.1:9222",
+    "profile_directory": "media/browser_profile/pexels",
+
+    "candidates_per_query": 3,
+    "min_candidates_per_query": 1,
+
+    "page_timeout_seconds": 60,
+    "download_timeout_seconds": 300,
+
+    "pause_min_seconds": 1,
+    "pause_max_seconds": 3
+}

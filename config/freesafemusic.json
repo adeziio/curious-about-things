@@ -1,0 +1,38 @@
+{
+    "enabled": true,
+
+    "base_url": "https://freesafemusic.com",
+    "license_url": "https://freesafemusic.com/usage",
+
+    "genres": [
+        "ambient",
+        "cinematic",
+        "inspiring",
+        "calm",
+        "piano"
+    ],
+
+    "preferred_tags": [
+        "ambient",
+        "calm",
+        "peaceful",
+        "relaxing",
+        "soothing",
+        "instrumental",
+        "cinematic",
+        "piano",
+        "mellow",
+        "soft",
+        "gentle",
+        "atmospheric",
+        "inspiring",
+        "uplifting",
+        "emotional",
+        "dreamy",
+        "chill"
+    ],
+
+    "max_genre_pages": 2,
+    "request_timeout_seconds": 30,
+    "download_timeout_seconds": 180
+}

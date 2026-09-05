@@ -1,0 +1,42 @@
+{
+    "video_provider": "pexels",
+    "music_provider": "freesafemusic",
+    "shorts": {
+        "min_duration_seconds": 50,
+        "max_duration_seconds": 60,
+        "target_duration_seconds": 58,
+        "aspect_ratio": "9:16",
+        "resolution": {
+            "width": 1080,
+            "height": 1920
+        },
+        "fps": 30,
+        "format": "mp4"
+    },
+    "audio": {
+        "narration": {
+            "voice": "en-US-GuyNeural",
+            "rate": "+10%",
+            "pitch": "+12Hz",
+            "volume": 1.0
+        },
+        "music": {
+            "enabled": true,
+            "volume": 0.12
+        },
+        "sfx": {
+            "enabled": false,
+            "volume": 0.6
+        }
+    },
+    "captions": {
+        "enabled": true,
+        "max_words_per_line": 3,
+        "font": "",
+        "font_size": 54,
+        "text_color": "white",
+        "stroke_color": "black",
+        "stroke_width": 3,
+        "vertical_position": 0.70
+    }
+}

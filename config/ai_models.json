@@ -1,0 +1,18 @@
+{
+    "models": {
+        "language_model": {
+            "enabled": true,
+            "provider": "ollama",
+            "model": "qwen3:8b",
+            "thinking": false,
+            "timeout": 900,
+            "options": {
+                "temperature": 1.0,
+                "top_p": 0.95,
+                "top_k": 80,
+                "repeat_penalty": 1.1,
+                "min_p": 0.05
+            }
+        }
+    }
+}

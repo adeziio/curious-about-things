@@ -1,0 +1,8119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Curious About Things</title>
+
+    <style>
+        :root {
+
+            /* Background - soft blue-tinted white */
+
+            --bg:
+                #F3F8FD;
+
+            --bg-soft:
+                #FFFFFF;
+
+            /* Panels and borders - light blue */
+
+            --panel:
+                rgba(147, 197, 253, 0.55);
+
+            --panel-solid:
+                #FFFFFF;
+
+            --panel-light:
+                rgba(239, 246, 255, 0.88);
+
+            --border:
+                rgba(147, 197, 253, 0.5);
+
+            --border-strong:
+                rgba(96, 165, 250, 0.65);
+
+            /* Text - deep navy */
+
+            --text:
+                #1E2A3D;
+
+            --muted:
+                #5A7294;
+
+            --muted-light:
+                #6C87A8;
+
+            /* Primary accent (blue) */
+
+            --accent:
+                #2E7DE0;
+
+            --accent-bright:
+                #54A0F5;
+
+            --accent-soft:
+                rgba(46, 125, 224, 0.10);
+
+            --accent-glow:
+                rgba(46, 125, 224, 0.20);
+
+            /* Secondary accent (green) */
+
+            --green:
+                #2FBF6F;
+
+            --green-soft:
+                rgba(47, 191, 111, 0.12);
+
+            /* Energy accent (yellow) */
+
+            --yellow:
+                #F3C33B;
+
+            --yellow-soft:
+                rgba(243, 195, 59, 0.14);
+
+            /* Legacy variable names kept for compatibility */
+
+            --purple:
+                #2FBF6F;
+
+            --purple-soft:
+                rgba(47, 191, 111, 0.11);
+
+            --blue:
+                #54A0F5;
+
+            /* Semantic */
+
+            --danger:
+                #E5484D;
+
+            --warning:
+                #F3C33B;
+
+            --shadow:
+                0 24px 80px rgba(46, 125, 224, 0.22);
+
+            --radius:
+                20px;
+
+        }
+
+
+        * {
+
+            box-sizing:
+                border-box;
+
+        }
+
+
+        html {
+
+            scroll-behavior:
+                smooth;
+
+        }
+
+
+        body {
+
+            margin:
+                0;
+
+            min-height:
+                100vh;
+
+            color:
+                var(--text);
+
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                Arial,
+                Helvetica,
+                sans-serif;
+
+            background:
+
+                radial-gradient(circle at 8% 0%,
+                    rgba(46, 125, 224, 0.075),
+                    transparent 24%),
+
+                radial-gradient(circle at 92% 4%,
+                    rgba(47, 191, 111, 0.09),
+                    transparent 27%),
+
+                radial-gradient(circle at 50% 70%,
+                    rgba(125, 211, 177, 0.035),
+                    transparent 35%),
+
+                linear-gradient(180deg,
+                    #F3F8FD 0%,
+                    #FFFFFF 45%,
+                    #F3F8FD 100%);
+
+        }
+
+
+        body::before {
+
+            content:
+                "";
+
+            position:
+                fixed;
+
+            inset:
+                0;
+
+            pointer-events:
+                none;
+
+            background-image:
+
+                linear-gradient(rgba(147, 197, 253, 0.28) 1px,
+                    transparent 1px),
+
+                linear-gradient(90deg,
+                    rgba(147, 197, 253, 0.28) 1px,
+                    transparent 1px);
+
+            background-size:
+                42px 42px;
+
+            mask-image:
+                linear-gradient(to bottom,
+                    black,
+                    transparent 80%);
+
+            z-index:
+                0;
+
+        }
+
+
+        body::after {
+
+            content:
+                "";
+
+            position:
+                fixed;
+
+            width:
+                700px;
+
+            height:
+                700px;
+
+            left:
+                50%;
+
+            top:
+                25%;
+
+            transform:
+                translate(-50%, -50%);
+
+            background:
+                radial-gradient(circle,
+                    rgba(46, 125, 224, 0.018),
+                    transparent 65%);
+
+            pointer-events:
+                none;
+
+            z-index:
+                0;
+
+        }
+
+
+        button,
+        video {
+
+            font-family:
+                inherit;
+
+        }
+
+
+        button {
+
+            border:
+                1px solid rgba(147, 197, 253, 0.5);
+
+            border-radius:
+                12px;
+
+            padding:
+                11px 16px;
+
+            background:
+                linear-gradient(180deg,
+                    #ffffff,
+                    #B3D0FA);
+
+            color:
+                #FFFFFF;
+
+            font-size:
+                13px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                -0.1px;
+
+            cursor:
+                pointer;
+
+            transition:
+                transform 0.18s ease,
+                box-shadow 0.18s ease,
+                border-color 0.18s ease,
+                opacity 0.18s ease;
+
+        }
+
+
+        button:hover {
+
+            transform:
+                translateY(-2px);
+
+            box-shadow:
+                0 12px 30px rgba(147, 197, 253, 0.5);
+
+        }
+
+
+        button:active {
+
+            transform:
+                translateY(0);
+
+        }
+
+
+        button:disabled {
+
+            opacity:
+                0.32;
+
+            cursor:
+                not-allowed;
+
+            transform:
+                none;
+
+            box-shadow:
+                none;
+
+        }
+
+
+        .primary-button {
+
+            position:
+                relative;
+
+            overflow:
+                hidden;
+
+            background:
+                linear-gradient(135deg,
+                    #C9E5FF,
+                    #6FB0F7);
+
+            color:
+                #1E2A3D;
+
+            border-color:
+                rgba(46, 125, 224, 0.35);
+
+            box-shadow:
+                0 10px 35px rgba(46, 125, 224, 0.10);
+
+        }
+
+
+        .primary-button::before {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            top:
+                0;
+
+            left:
+                -120%;
+
+            width:
+                80%;
+
+            height:
+                100%;
+
+            background:
+                linear-gradient(90deg,
+                    transparent,
+                    rgba(147, 197, 253, 0.65),
+                    transparent);
+
+            transform:
+                skewX(-20deg);
+
+            transition:
+                left 0.6s ease;
+
+        }
+
+
+        .primary-button:hover::before {
+
+            left:
+                140%;
+
+        }
+
+
+        .secondary {
+
+            background:
+                rgba(147, 197, 253, 0.4);
+
+            border-color:
+                var(--border);
+
+            color:
+                black;
+
+        }
+
+
+        .container {
+
+            width:
+                min(1540px, 94%);
+
+            margin:
+                0 auto;
+
+            padding:
+                32px 0 70px;
+
+            position:
+                relative;
+
+            z-index:
+                1;
+
+        }
+
+
+        /* ==================================================
+           HERO
+        ================================================== */
+
+        .hero {
+
+            position:
+                relative;
+
+            overflow:
+                hidden;
+
+            min-height:
+                205px;
+
+            padding:
+                34px 36px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                28px;
+
+            background:
+
+                linear-gradient(135deg,
+                    rgba(147, 197, 253, 0.65),
+                    rgba(147, 197, 253, 0.65));
+
+            box-shadow:
+                var(--shadow);
+
+        }
+
+
+        .hero::before {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            width:
+                420px;
+
+            height:
+                420px;
+
+            right:
+                -150px;
+
+            top:
+                -250px;
+
+            border-radius:
+                50%;
+
+            background:
+                var(--accent);
+
+            filter:
+                blur(120px);
+
+            opacity:
+                0.09;
+
+            pointer-events:
+                none;
+
+        }
+
+
+        .hero::after {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            width:
+                350px;
+
+            height:
+                350px;
+
+            left:
+                -190px;
+
+            bottom:
+                -250px;
+
+            border-radius:
+                50%;
+
+            background:
+                var(--purple);
+
+            filter:
+                blur(120px);
+
+            opacity:
+                0.09;
+
+            pointer-events:
+                none;
+
+        }
+
+
+        .hero-grid {
+
+            position:
+                absolute;
+
+            inset:
+                0;
+
+            background-image:
+
+                linear-gradient(rgba(147, 197, 253, 0.28) 1px,
+                    transparent 1px),
+
+                linear-gradient(90deg,
+                    rgba(147, 197, 253, 0.28) 1px,
+                    transparent 1px);
+
+            background-size:
+                32px 32px;
+
+            mask-image:
+                radial-gradient(circle at center,
+                    black,
+                    transparent 75%);
+
+            pointer-events:
+                none;
+
+        }
+
+
+        .hero-content {
+
+            position:
+                relative;
+
+            z-index:
+                2;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                30px;
+
+            min-height:
+                137px;
+
+        }
+
+
+        .brand {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                22px;
+
+        }
+
+
+        .monkey-logo {
+
+            position:
+                relative;
+
+            width:
+                102px;
+
+            height:
+                102px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            border:
+                1px solid rgba(46, 125, 224, 0.20);
+
+            border-radius:
+                25px;
+
+            background: linear-gradient(135deg, rgba(147, 197, 253, 0.65), rgba(147, 197, 253, 0.65));
+            box-shadow: var(--shadow);
+
+        }
+
+
+        .monkey-logo::before {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            inset:
+                9px;
+
+            border:
+                1px solid rgba(147, 197, 253, 0.4);
+
+            border-radius:
+                18px;
+
+        }
+
+
+        .monkey-logo span {
+
+            position:
+                relative;
+
+            z-index:
+                2;
+
+            font-size:
+                52px;
+
+            filter:
+                drop-shadow(0 7px 14px rgba(0, 0, 0, 0.55));
+
+            animation:
+                monkeyFloat 4s ease-in-out infinite;
+
+        }
+
+
+        @keyframes monkeyFloat {
+
+            0%,
+            100% {
+
+                transform:
+                    translateY(0) rotate(0deg);
+
+            }
+
+            50% {
+
+                transform:
+                    translateY(-4px) rotate(2deg);
+
+            }
+
+        }
+
+
+        .brand h1 {
+
+            margin:
+                0;
+
+            font-size:
+                clamp(34px, 4vw, 50px);
+
+            line-height:
+                0.95;
+
+            letter-spacing:
+                -2.5px;
+
+            font-weight:
+                950;
+
+        }
+
+
+        .brand h1 span {
+
+            color: #2E7DE0;
+
+            text-shadow:
+                0 0 30px rgba(46, 125, 224, 0.16);
+
+        }
+
+
+        .subtitle {
+
+            margin-top:
+                11px;
+
+            color:
+                var(--muted);
+
+            font-size:
+                14px;
+
+            letter-spacing:
+                0.25px;
+
+        }
+
+
+        .hero-status {
+
+            display:
+                flex;
+
+            flex-direction:
+                column;
+
+            align-items:
+                flex-end;
+
+            gap:
+                9px;
+
+        }
+
+
+        .status-pill {
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            gap:
+                9px;
+
+            padding:
+                9px 13px;
+
+            border:
+                1px solid rgba(46, 125, 224, 0.16);
+
+            border-radius:
+                999px;
+
+            background:
+                rgba(46, 125, 224, 0.055);
+
+            color:
+                #2563EB;
+
+            font-size:
+                11px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                0.6px;
+
+        }
+
+
+        .status-dot {
+
+            width:
+                7px;
+
+            height:
+                7px;
+
+            border-radius:
+                50%;
+
+            background:
+                #02f90273;
+
+            box-shadow:
+                0 0 14px var(--accent);
+
+            animation:
+                pulse 2s infinite;
+
+        }
+
+
+        .status-caption {
+
+            color:
+                #5B7CA6;
+
+            font-size:
+                10px;
+
+            letter-spacing:
+                0.8px;
+
+            text-transform:
+                uppercase;
+
+        }
+
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+
+                opacity:
+                    1;
+
+                transform:
+                    scale(1);
+
+            }
+
+            50% {
+
+                opacity:
+                    0.45;
+
+                transform:
+                    scale(0.72);
+
+            }
+
+        }
+
+
+        /* ==================================================
+           SECTION BAR
+        ================================================== */
+
+        .topbar {
+
+            margin-top:
+                32px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                18px;
+
+            flex-wrap:
+                wrap;
+
+        }
+
+
+        .tabs {
+
+            margin-top:
+                28px;
+
+            display:
+                flex;
+
+            gap:
+                8px;
+
+            background:
+                var(--panel);
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                14px;
+
+            padding:
+                6px;
+
+            width:
+                fit-content;
+
+        }
+
+
+        .tab-button {
+
+            appearance:
+                none;
+
+            border:
+                none;
+
+            background:
+                transparent;
+
+            color:
+                var(--muted);
+
+            font-family:
+                inherit;
+
+            font-size:
+                15px;
+
+            font-weight:
+                600;
+
+            padding:
+                10px 24px;
+
+            border-radius:
+                10px;
+
+            cursor:
+                pointer;
+
+            transition:
+                color 0.15s ease,
+                background 0.15s ease;
+
+        }
+
+
+        .tab-button:hover {
+
+            color:
+                var(--text);
+
+        }
+
+
+        .tab-button.active {
+
+            background:
+                var(--accent-soft);
+
+            color: #2E7DE0;
+
+            box-shadow:
+                inset 0 0 0 1px var(--accent-glow);
+
+        }
+
+
+        .tab-panel[hidden] {
+
+            display:
+                none;
+
+        }
+
+
+        .videos-placeholder {
+
+            margin-top:
+                32px;
+
+            padding:
+                64px 32px;
+
+            display:
+                flex;
+
+            flex-direction:
+                column;
+
+            align-items:
+                center;
+
+            gap:
+                12px;
+
+            text-align:
+                center;
+
+            background:
+                var(--panel);
+
+            border:
+                1px dashed var(--border-strong);
+
+            border-radius:
+                18px;
+
+        }
+
+
+        .videos-placeholder-icon {
+
+            font-size:
+                40px;
+
+        }
+
+
+        .videos-placeholder h3 {
+
+            margin:
+                0;
+
+            color:
+                var(--text);
+
+            font-size:
+                20px;
+
+        }
+
+
+        .videos-placeholder p {
+
+            margin:
+                0;
+
+            color:
+                var(--muted);
+
+            font-size:
+                14px;
+
+        }
+
+
+        .episode-controls {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                9px;
+
+        }
+
+        .create-episode-group {
+
+            display:
+                flex;
+
+            flex-direction:
+                row;
+
+            align-items:
+                center;
+
+            gap:
+                9px;
+
+        }
+
+
+        .topic-hint {
+
+            width:
+                280px;
+
+            padding:
+                9px 13px;
+
+            border-radius:
+                10px;
+
+            border:
+                1px solid #22314A;
+
+            background:
+                #0F1622;
+
+            color:
+                #EAF2FC;
+
+            font-size:
+                13px;
+
+            outline:
+                none;
+
+        }
+
+
+        .topic-hint:focus {
+
+            border-color:
+                #2E7DE0;
+
+        }
+
+
+        .topic-hint::placeholder {
+
+            color:
+                #4A6282;
+
+        }
+
+
+        .prompt-only-option {
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            gap:
+                6px;
+
+            font-size:
+                13px;
+
+            color:
+                #6C87A8;
+
+            cursor:
+                pointer;
+
+            user-select:
+                none;
+
+            white-space:
+                nowrap;
+
+        }
+
+
+        .prompt-only-option input {
+
+            width:
+                15px;
+
+            height:
+                15px;
+
+            accent-color: #2E7DE0;
+
+            cursor:
+                pointer;
+
+            margin:
+                0;
+
+        }
+
+
+        .replay-toggle {
+
+            width:
+                38px;
+
+            height:
+                38px;
+
+            padding:
+                0;
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                50%;
+
+            background:
+                rgba(147, 197, 253, 0.4);
+
+            color:
+                #6C87A8;
+
+            cursor:
+                pointer;
+
+            font-size:
+                18px;
+
+            transition:
+                color 0.2s ease,
+                border-color 0.2s ease,
+                background 0.2s ease;
+
+        }
+
+
+        .replay-toggle:hover {
+
+            color:
+                #D6E4F7;
+
+            background:
+                rgba(147, 197, 253, 0.5);
+
+        }
+
+
+        .replay-toggle.active {
+
+            border-color:
+                rgba(46, 125, 224, 0.65);
+
+            background:
+                rgba(46, 125, 224, 0.13);
+
+            color:
+                #5B9DF8;
+
+            animation:
+                replaySpin 1.5s linear infinite;
+
+        }
+
+
+        .replay-toggle:disabled {
+
+            opacity:
+                0.55;
+
+            cursor:
+                not-allowed;
+
+        }
+
+
+        @keyframes replaySpin {
+
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+
+        }
+
+
+        .section-heading {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                12px;
+
+        }
+
+
+        .section-icon {
+
+            width:
+                34px;
+
+            height:
+                34px;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                10px;
+
+            background:
+                rgba(147, 197, 253, 0.4);
+
+            font-size:
+                15px;
+
+        }
+
+
+        .section-heading h2 {
+
+            margin:
+                0;
+
+            font-size:
+                22px;
+
+            letter-spacing:
+                -0.5px;
+
+        }
+
+
+        .episode-count {
+
+            min-width:
+                30px;
+
+            height:
+                28px;
+
+            padding:
+                0 9px;
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            border:
+                1px solid rgba(243, 195, 59, 0.45);
+
+            border-radius:
+                999px;
+
+            background:
+                var(--yellow-soft);
+
+            color:
+                #9A6D00;
+
+            font-size:
+                11px;
+
+            font-weight:
+                900;
+
+        }
+
+
+        /* ==================================================
+           GENERATION PROGRESS
+        ================================================== */
+
+        .progress-section {
+
+            position:
+                relative;
+
+            margin-top:
+                18px;
+
+            padding:
+                18px 19px 19px;
+
+            overflow:
+                hidden;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                16px;
+
+            background: linear-gradient(135deg, rgba(147, 197, 253, 0.65));
+
+            backdrop-filter:
+                blur(14px);
+
+        }
+
+
+        .progress-section::before {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            left:
+                0;
+
+            top:
+                0;
+
+            width:
+                180px;
+
+            height:
+                1px;
+
+            background:
+                linear-gradient(90deg,
+                    var(--accent),
+                    transparent);
+
+        }
+
+
+        .progress-title {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                8px;
+
+            color:
+                black;
+
+            font-size:
+                12px;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                0.1px;
+
+        }
+
+
+        .progress-title::before {
+
+            content:
+                "⚙";
+
+            color: #2E7DE0;
+
+        }
+
+
+        .progress-wrapper {
+
+            display:
+                none;
+
+            margin-top:
+                15px;
+
+        }
+
+
+        .progress-wrapper.active {
+
+            display:
+                block;
+
+        }
+
+
+        .stage-grid {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                repeat(2,
+                    minmax(0,
+                        1fr));
+
+            gap:
+                12px;
+
+        }
+
+
+        .stage-card {
+
+            position:
+                relative;
+
+            min-width:
+                0;
+
+            padding:
+                14px;
+
+            border:
+                1px solid rgba(147, 197, 253, 0.5);
+
+            border-radius:
+                13px;
+
+            background:
+                rgba(46, 125, 224, 0.055);
+
+            transition:
+                border-color 0.2s ease,
+                background 0.2s ease,
+                box-shadow 0.2s ease;
+
+        }
+
+
+        .stage-card.active {
+
+            border-color:
+                rgba(46, 125, 224, 0.25);
+
+            background:
+                rgba(46, 125, 224, 0.035);
+
+            box-shadow:
+                inset 0 0 25px rgba(46, 125, 224, 0.025);
+
+        }
+
+
+        .stage-card.complete {
+
+            border-color:
+                rgba(46, 125, 224, 0.18);
+
+        }
+
+
+        .stage-card.failed {
+
+            border-color:
+                rgba(240, 128, 128, 0.25);
+
+            background:
+                rgba(255, 70, 70, 0.035);
+
+        }
+
+
+        .stage-header {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                10px;
+
+        }
+
+
+        .stage-name {
+
+            color:
+                #2E7DE0;
+
+            font-size:
+                11px;
+
+            font-weight:
+                900;
+
+            text-transform:
+                uppercase;
+
+            letter-spacing:
+                0.85px;
+
+        }
+
+
+        .stage-status {
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            gap:
+                5px;
+
+            color:
+                #5A7294;
+
+            font-size:
+                9px;
+
+            font-weight:
+                900;
+
+            text-transform:
+                uppercase;
+
+            letter-spacing:
+                0.65px;
+
+        }
+
+
+        .stage-status-dot {
+
+            width:
+                6px;
+
+            height:
+                6px;
+
+            flex:
+                0 0 auto;
+
+            border-radius:
+                50%;
+
+            background:
+                #5B7CA6;
+
+        }
+
+
+        .stage-card.active .stage-status {
+
+            color:
+                #7DB1FA;
+
+        }
+
+
+        .stage-card.active .stage-status-dot {
+
+            background:
+                var(--accent);
+
+            box-shadow:
+                0 0 10px rgba(46, 125, 224, 0.75);
+
+            animation:
+                pulse 1.4s infinite;
+
+        }
+
+
+        .stage-card.complete .stage-status {
+
+            color:
+                #2E7DE0;
+
+        }
+
+
+        .stage-card.complete .stage-status-dot {
+
+            background:
+                #02f90273;
+
+            box-shadow:
+                0 0 8px #02f90273;
+
+        }
+
+
+        .stage-card.failed .stage-status {
+
+            color:
+                #ff9d9d;
+
+        }
+
+
+        .stage-card.failed .stage-status-dot {
+
+            background:
+                var(--danger);
+
+            box-shadow:
+                0 0 8px rgba(240, 128, 128, 0.45);
+
+        }
+
+
+        .stage-bar {
+
+            width:
+                100%;
+
+            height:
+                8px;
+
+            margin-top:
+                12px;
+
+            overflow:
+                hidden;
+
+            border:
+                1px solid rgba(147, 197, 253, 0.4);
+
+            border-radius:
+                999px;
+
+            background:
+                #EDF2F8;
+
+        }
+
+
+        .stage-fill {
+
+            width:
+                0%;
+
+            height:
+                100%;
+
+            border-radius:
+                inherit;
+
+            background:
+                linear-gradient(90deg,
+                    var(--purple),
+                    var(--accent));
+
+            box-shadow:
+                0 0 16px rgba(46, 125, 224, 0.25);
+
+            transition:
+                width 0.25s ease;
+
+        }
+
+
+        .stage-card.complete .stage-fill {
+
+            background:
+                linear-gradient(90deg,
+                    #78d74d,
+                    var(--accent));
+
+        }
+
+
+        .stage-card.failed .stage-fill {
+
+            background:
+                linear-gradient(90deg,
+                    #c74e4e,
+                    var(--danger));
+
+            box-shadow:
+                none;
+
+        }
+
+
+        .stage-footer {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                10px;
+
+            margin-top:
+                8px;
+
+        }
+
+
+        .stage-message {
+
+            min-width:
+                0;
+
+            overflow:
+                hidden;
+
+            text-overflow:
+                ellipsis;
+
+            white-space:
+                nowrap;
+
+            color:
+                #7d8692;
+
+            font-size:
+                10px;
+
+        }
+
+
+        .stage-percent {
+
+            flex:
+                0 0 auto;
+
+            color:
+                #aab2bd;
+
+            font-size:
+                10px;
+
+            font-weight:
+                900;
+
+        }
+
+
+        .progress-summary {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                12px;
+
+            margin-top:
+                12px;
+
+            color:
+                #5A7294;
+
+            font-size:
+                10px;
+
+        }
+
+
+        .progress-summary strong {
+
+            color:
+                #9ea6b1;
+
+            font-weight:
+                800;
+
+        }
+
+
+        .error {
+
+            margin-top:
+                13px;
+
+            padding:
+                11px 13px;
+
+            border:
+                1px solid rgba(255, 70, 70, 0.18);
+
+            border-radius:
+                10px;
+
+            background:
+                rgba(255, 70, 70, 0.07);
+
+            color:
+                #ff9d9d;
+
+            display:
+                none;
+
+            font-size:
+                12px;
+
+        }
+
+
+        /* ==================================================
+           EPISODE GRID
+        ================================================== */
+
+        .episodes {
+
+            margin-top:
+                18px;
+
+            display:
+                grid;
+
+            grid-template-columns:
+                repeat(auto-fit,
+                    minmax(270px,
+                        1fr));
+
+            gap:
+                17px;
+
+        }
+
+
+        .episode-card {
+
+            position:
+                relative;
+
+            min-width:
+                0;
+
+            overflow:
+                hidden;
+
+            padding:
+                17px;
+
+            display:
+                flex;
+
+            flex-direction:
+                column;
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                var(--radius);
+
+            background: linear-gradient(135deg, rgba(147, 197, 253, 0.65), rgba(147, 197, 253, 0.65));
+            box-shadow: var(--shadow);
+
+            transition:
+                transform 0.25s ease,
+                border-color 0.25s ease,
+                box-shadow 0.25s ease,
+                background 0.25s ease;
+
+        }
+
+
+        .episode-card::before {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            left:
+                0;
+
+            right:
+                0;
+
+            top:
+                0;
+
+            height:
+                1px;
+
+            background:
+                linear-gradient(90deg,
+                    transparent,
+                    rgba(46, 125, 224, 0.30),
+                    transparent);
+
+            opacity:
+                0;
+
+            transition:
+                opacity 0.25s ease;
+
+        }
+
+
+        .episode-card::after {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            width:
+                130px;
+
+            height:
+                130px;
+
+            right:
+                -90px;
+
+            top:
+                -90px;
+
+            border-radius:
+                50%;
+
+            background:
+                var(--accent);
+
+            filter:
+                blur(55px);
+
+            opacity:
+                0;
+
+            transition:
+                opacity 0.3s ease;
+
+            pointer-events:
+                none;
+
+        }
+
+
+        .episode-card:hover {
+
+            transform:
+                translateY(-5px);
+
+            border-color:
+                var(--border-strong);
+
+            box-shadow:
+                0 22px 55px rgba(0, 0, 0, 0.32);
+
+        }
+
+
+        .episode-card:hover::before,
+        .episode-card:hover::after {
+
+            opacity:
+                1;
+
+        }
+
+
+        .episode-card.active {
+
+            border-color:
+                rgba(46, 125, 224, 0.25);
+
+            background: linear-gradient(135deg, rgba(147, 197, 253, 0.65), rgba(147, 197, 253, 0.65));
+            box-shadow: var(--shadow);
+
+        }
+
+
+        .episode-card.active::before {
+
+            opacity:
+                1;
+
+        }
+
+
+        .episode-card.active::after {
+
+            opacity:
+                0.55;
+
+        }
+
+
+        .episode-card.active .episode-number {
+
+            border-color:
+                rgba(46, 125, 224, 0.28);
+
+            background:
+                rgba(46, 125, 224, 0.13);
+
+            color:
+                black;
+
+        }
+
+
+        /* ==================================================
+           GENERATING HIGHLIGHT
+        ================================================== */
+
+        /*
+         * A newly created episode gets a clear pulsing highlight
+         * while the job is running, so the user can immediately
+         * see that it is being generated.
+         */
+
+        .episode-card.generating {
+
+            border-color:
+                rgba(46, 125, 224, 0.55);
+
+            animation:
+                generatingGlow 1.4s ease-in-out infinite;
+
+        }
+
+
+        .episode-card.generating::before {
+
+            opacity:
+                1;
+
+        }
+
+
+        .episode-card.generating::after {
+
+            opacity:
+                0.7;
+
+        }
+
+
+        .episode-generating-badge {
+
+            position:
+                absolute;
+
+            top:
+                12px;
+
+            right:
+                12px;
+
+            z-index:
+                3;
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            gap:
+                6px;
+
+            padding:
+                4px 10px;
+
+            border-radius:
+                999px;
+
+            background:
+                rgba(46, 125, 224, 0.14);
+
+            border:
+                1px solid rgba(46, 125, 224, 0.42);
+
+            color:
+                #1E2A3D;
+
+            font-size:
+                11px;
+
+            font-weight:
+                600;
+
+            letter-spacing:
+                0.04em;
+
+            opacity:
+                0;
+
+            transform:
+                translateY(-4px);
+
+            transition:
+                opacity 0.25s ease,
+                transform 0.25s ease;
+
+            pointer-events:
+                none;
+
+        }
+
+
+        .episode-card.generating .episode-generating-badge {
+
+            opacity:
+                1;
+
+            transform:
+                translateY(0);
+
+        }
+
+
+        .episode-generating-dot {
+
+            width:
+                8px;
+
+            height:
+                8px;
+
+            border-radius:
+                50%;
+
+            background:
+                var(--accent);
+
+            animation:
+                generatingPulse 1s ease-in-out infinite;
+
+        }
+
+
+        @keyframes generatingGlow {
+
+            0%,
+            100% {
+                box-shadow:
+                    0 0 20px rgba(46, 125, 224, 0.12),
+                    inset 0 0 22px rgba(46, 125, 224, 0.05);
+            }
+
+            50% {
+                box-shadow:
+                    0 0 34px rgba(46, 125, 224, 0.28),
+                    inset 0 0 26px rgba(46, 125, 224, 0.10);
+            }
+
+        }
+
+
+        @keyframes generatingPulse {
+
+            0%,
+            100% {
+                opacity:
+                    1;
+
+                transform:
+                    scale(1);
+            }
+
+            50% {
+                opacity:
+                    0.3;
+
+                transform:
+                    scale(0.6);
+            }
+
+        }
+
+
+        .episode-header {
+
+            position:
+                relative;
+
+            z-index:
+                2;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                10px;
+
+        }
+
+
+        .episode-number {
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            min-width:
+                54px;
+
+            height:
+                31px;
+
+            padding:
+                0 10px;
+
+            border:
+                1px solid rgba(46, 125, 224, 0.16);
+
+            border-radius:
+                9px;
+
+            background:
+                var(--accent-soft);
+
+            color:
+                #1E2A3D;
+
+            font-size:
+                12px;
+
+            font-weight:
+                950;
+
+            letter-spacing:
+                0.5px;
+
+        }
+
+
+        .episode-delete-button {
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            flex:
+                0 0 auto;
+
+            width:
+                30px;
+
+            height:
+                30px;
+
+            padding:
+                5px;
+
+            border:
+                1px solid rgba(147, 197, 253, 0.5);
+
+            border-radius:
+                8px;
+
+            background:
+                rgba(147, 197, 253, 0.4);
+
+            color:
+                #1E2A3D;
+
+            cursor:
+                pointer;
+
+            transition:
+                color 0.2s ease,
+                border-color 0.2s ease,
+                background 0.2s ease;
+
+        }
+
+
+        .episode-delete-button:hover {
+
+            color:
+                #ff8080;
+
+            border-color:
+                rgba(255, 128, 128, 0.35);
+
+            background:
+                rgba(255, 128, 128, 0.08);
+
+        }
+
+
+        .episode-delete-button svg {
+
+            width:
+                14px;
+
+            height:
+                14px;
+
+        }
+
+
+        /* ==================================================
+           DELETE EPISODE CONFIRM MODAL
+        ================================================== */
+
+        .delete-confirm-panel {
+
+            width:
+                min(430px, 100%);
+
+        }
+
+
+        .delete-confirm-body {
+
+            padding:
+                18px 24px 0;
+
+            font-size:
+                13px;
+
+            color:
+                #aeb4bd;
+
+            line-height:
+                1.65;
+
+        }
+
+
+        .delete-confirm-body strong {
+
+            color:
+                black;
+
+        }
+
+
+        .delete-confirm-warning {
+
+            margin-top:
+                10px;
+
+            font-size:
+                12px;
+
+            font-weight:
+                700;
+
+            color:
+                #ff9a9a;
+
+        }
+
+
+        .delete-confirm-footer {
+
+            padding:
+                0 24px 22px;
+
+        }
+
+
+        .danger-button {
+
+            background:
+                linear-gradient(135deg,
+                    #ff9a9a,
+                    #ff6b6b);
+
+            border-color:
+                rgba(255, 128, 128, 0.4);
+
+            color:
+                #7A2333;
+
+            box-shadow:
+                0 10px 35px rgba(255, 107, 107, 0.15);
+
+        }
+
+
+        .episode-content {
+
+            position:
+                relative;
+
+            z-index:
+                2;
+
+            margin-top:
+                17px;
+
+            display:
+                flex;
+
+            flex-direction:
+                column;
+
+            min-width:
+                0;
+
+            flex:
+                1;
+
+        }
+
+
+        .label {
+
+            color:
+                #5A7294;
+
+            font-size:
+                9px;
+
+            font-weight:
+                900;
+
+            text-transform:
+                uppercase;
+
+            letter-spacing:
+                1.05px;
+
+        }
+
+
+        .title {
+
+            margin-top:
+                7px;
+
+            color:
+                black;
+
+            font-size:
+                16px;
+
+            line-height:
+                1.3;
+
+            font-weight:
+                850;
+
+            letter-spacing:
+                -0.25px;
+
+        }
+
+
+        .prompt {
+
+            margin-top:
+                9px;
+
+            color:
+                black;
+
+            font-size:
+                12px;
+
+            line-height:
+                1.55;
+
+        }
+
+
+        .section-label {
+
+            margin-top:
+                13px;
+
+            color:
+                #5A7294;
+
+            font-size:
+                9px;
+
+            font-weight:
+                900;
+
+            text-transform:
+                uppercase;
+
+            letter-spacing:
+                0.8px;
+
+        }
+
+
+        .summary {
+
+            margin-top:
+                6px;
+
+            color:
+                black;
+
+            font-size:
+                12px;
+
+            line-height:
+                1.55;
+
+        }
+
+
+        .prompt-toggle {
+
+            margin-top:
+                11px;
+
+        }
+
+
+        .prompt-toggle>summary {
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            gap:
+                5px;
+
+            cursor:
+                pointer;
+
+            color:
+                #5A7294;
+
+            font-size:
+                10px;
+
+            font-weight:
+                800;
+
+            text-transform:
+                uppercase;
+
+            letter-spacing:
+                0.6px;
+
+            list-style:
+                none;
+
+            user-select:
+                none;
+
+        }
+
+
+        .prompt-toggle>summary::-webkit-details-marker {
+
+            display:
+                none;
+
+        }
+
+
+        .prompt-toggle>summary::before {
+
+            content:
+                "+";
+
+            font-weight:
+                900;
+
+        }
+
+
+        .prompt-toggle[open]>summary {
+
+            color:
+                #6C87A8;
+
+        }
+
+
+        .prompt-toggle[open]>summary::before {
+
+            content:
+                "\2212";
+
+        }
+
+
+        .prompt-toggle>summary:hover {
+
+            color:
+                #b8c0cb;
+
+        }
+
+
+        .prompt-empty {
+
+            margin-top:
+                8px;
+
+            color:
+                #5A7294;
+
+            font-size:
+                12px;
+
+        }
+
+
+        /* ==================================================
+           VIDEO
+        ================================================== */
+
+        .video-panel {
+
+            min-width:
+                0;
+
+            margin-top:
+                17px;
+
+            padding-top:
+                15px;
+
+            border-top:
+                1px solid rgba(147, 197, 253, 0.4);
+
+        }
+
+
+        .video-heading {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                space-between;
+
+            gap:
+                8px;
+
+        }
+
+
+        .video-status {
+
+            margin-top:
+                5px;
+
+            color:
+                #5A7294;
+
+            font-size:
+                10px;
+
+        }
+
+
+        .video-badge {
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            gap:
+                5px;
+
+            padding:
+                4px 7px;
+
+            border:
+                1px solid rgba(46, 125, 224, 0.14);
+
+            border-radius:
+                999px;
+
+            background:
+                rgba(46, 125, 224, 0.055);
+
+            color:
+                #7DB1FA;
+
+            font-size:
+                8px;
+
+            font-weight:
+                900;
+
+            text-transform:
+                uppercase;
+
+            letter-spacing:
+                0.7px;
+
+        }
+
+
+        .video-badge::before {
+
+            content:
+                "";
+
+            width:
+                5px;
+
+            height:
+                5px;
+
+            border-radius:
+                50%;
+
+            background:
+                var(--accent);
+
+            box-shadow:
+                0 0 8px var(--accent);
+
+        }
+
+
+        video {
+
+            width:
+                100%;
+
+            aspect-ratio:
+                9 / 16;
+
+            object-fit:
+                contain;
+
+            margin-top:
+                10px;
+
+            display:
+                block;
+
+            border:
+                1px solid rgba(147, 197, 253, 0.5);
+
+            border-radius:
+                13px;
+
+            background:
+                #020304;
+
+            box-shadow:
+                0 18px 38px rgba(0, 0, 0, 0.40);
+
+        }
+
+
+        video:hover {
+
+            border-color:
+                rgba(46, 125, 224, 0.20);
+
+        }
+
+
+        /* ==================================================
+           EPISODE ACTIONS
+           Always anchored at the bottom of the card.
+        ================================================== */
+
+        .episode-actions {
+
+            position:
+                relative;
+
+            z-index:
+                2;
+
+            margin-top:
+                17px;
+
+            padding-top:
+                15px;
+
+            border-top:
+                1px solid rgba(147, 197, 253, 0.4);
+
+            display:
+                flex;
+
+            gap:
+                8px;
+
+            flex-wrap:
+                wrap;
+
+        }
+
+
+        .episode-actions button {
+
+            flex:
+                1;
+
+            min-width:
+                0;
+
+            padding:
+                9px 11px;
+
+            font-size:
+                11px;
+
+        }
+
+
+        .episode-actions .upload-button {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            gap:
+                7px;
+
+        }
+
+
+        .platform-logo {
+
+            width:
+                17px;
+
+            height:
+                17px;
+
+            flex:
+                0 0 auto;
+
+            display:
+                block;
+
+        }
+
+
+        .platform-logo.instagram-logo {
+
+            color:
+                #e1306c;
+
+        }
+
+
+        .upload-button.uploaded {
+
+            border-color:
+                rgba(46, 204, 113, 0.6);
+
+            box-shadow:
+                inset 0 0 0 1px rgba(46, 204, 113, 0.3);
+
+        }
+
+
+        .upload-done-check {
+
+            display:
+                none;
+
+            width:
+                15px;
+
+            height:
+                15px;
+
+            border-radius:
+                50%;
+
+            background:
+                #5FB894;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            margin-left:
+                auto;
+
+        }
+
+
+        .upload-button.uploaded .upload-done-check {
+
+            display:
+                inline-flex;
+
+        }
+
+
+        .upload-done-check svg {
+
+            width:
+                10px;
+
+            height:
+                10px;
+
+            fill:
+                #1E2A3D;
+
+        }
+
+
+        .upload-done-row {
+
+            margin:
+                0 22px;
+
+            padding:
+                11px 14px;
+
+            border:
+                1px solid rgba(46, 204, 113, 0.25);
+
+            border-radius:
+                8px;
+
+            background:
+                rgba(46, 204, 113, 0.06);
+
+        }
+
+
+        .upload-done-toggle {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                9px;
+
+            font-size:
+                12px;
+
+            color:
+                black;
+
+            cursor:
+                pointer;
+
+            user-select:
+                none;
+
+        }
+
+
+        .upload-done-toggle input {
+
+            accent-color:
+                #5FB894;
+
+            width:
+                15px;
+
+            height:
+                15px;
+
+            cursor:
+                pointer;
+
+        }
+
+
+        /* ==================================================
+           EMPTY STATE
+        ================================================== */
+
+        .empty {
+
+            grid-column:
+                1 / -1;
+
+            position:
+                relative;
+
+            padding:
+                65px 24px;
+
+            overflow:
+                hidden;
+
+            border:
+                1px dashed rgba(147, 197, 253, 0.5);
+
+            border-radius:
+                18px;
+
+            background:
+                rgba(234, 240, 250, 0.65);
+
+            color:
+                #5A7294;
+
+            text-align:
+                center;
+
+            font-size:
+                13px;
+
+        }
+
+
+        .empty::before {
+
+            content:
+                "🐒";
+
+            display:
+                block;
+
+            margin-bottom:
+                12px;
+
+            font-size:
+                34px;
+
+            filter:
+                grayscale(0.25);
+
+        }
+
+
+        /* ==================================================
+           FOOTER
+        ================================================== */
+
+        .footer {
+
+            margin-top:
+                38px;
+
+            padding:
+                22px;
+
+            border-top:
+                1px solid rgba(147, 197, 253, 0.4);
+
+            color:
+                #5B7CA6;
+
+            text-align:
+                center;
+
+            font-size:
+                10px;
+
+            letter-spacing:
+                0.9px;
+
+        }
+
+
+        .footer span {
+
+            color:
+                #5A7294;
+
+            font-weight:
+                800;
+
+        }
+
+
+        /* ==================================================
+           YOUTUBE UPLOAD MODAL
+        ================================================== */
+
+        .youtube-modal {
+
+            position:
+                fixed;
+
+            inset:
+                0;
+
+            z-index:
+                1000;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            padding:
+                24px;
+
+        }
+
+
+        .youtube-modal[hidden] {
+
+            display:
+                none;
+
+        }
+
+
+        .youtube-modal-backdrop {
+
+            position:
+                absolute;
+
+            inset:
+                0;
+
+            background:
+                rgba(5, 8, 12, 0.72);
+
+            backdrop-filter:
+                blur(6px);
+
+        }
+
+
+        .youtube-modal-panel {
+
+            position:
+                relative;
+
+            width:
+                min(760px, 100%);
+
+            max-height:
+                92vh;
+
+            overflow-y:
+                auto;
+
+            background:
+                #FFFFFF;
+
+            border:
+                1px solid rgba(147, 197, 253, 0.5);
+
+            border-radius:
+                20px;
+
+            box-shadow:
+                0 30px 80px rgba(0, 0, 0, 0.55);
+
+        }
+
+
+        .youtube-modal-header {
+
+            display:
+                flex;
+
+            align-items:
+                flex-start;
+
+            justify-content:
+                space-between;
+
+            gap:
+                16px;
+
+            padding:
+                22px 24px 16px;
+
+            border-bottom:
+                1px solid rgba(147, 197, 253, 0.4);
+
+        }
+
+
+        .youtube-modal-title {
+
+            font-size:
+                19px;
+
+            font-weight:
+                800;
+
+            letter-spacing:
+                -0.4px;
+
+            color:
+                black;
+
+        }
+
+
+        .youtube-modal-subtitle {
+
+            margin-top:
+                5px;
+
+            font-size:
+                11px;
+
+            color:
+                #5A7294;
+
+            word-break:
+                break-all;
+
+        }
+
+
+        .youtube-modal-close {
+
+            border:
+                1px solid var(--border);
+
+            background:
+                rgba(147, 197, 253, 0.4);
+
+            color:
+                #6C87A8;
+
+            width:
+                34px;
+
+            height:
+                34px;
+
+            min-width:
+                34px;
+
+            border-radius:
+                10px;
+
+            cursor:
+                pointer;
+
+            font-size:
+                13px;
+
+        }
+
+
+        .youtube-modal-close:hover {
+
+            color:
+                #1E2A3D;
+
+            background:
+                rgba(147, 197, 253, 0.5);
+
+        }
+
+
+        .youtube-form {
+
+            padding:
+                4px 24px 22px;
+
+        }
+
+
+        .youtube-form-section {
+
+            padding:
+                16px 0;
+
+            border-bottom:
+                1px solid rgba(147, 197, 253, 0.4);
+
+        }
+
+
+        .youtube-form-heading {
+
+            font-size:
+                12px;
+
+            font-weight:
+                800;
+
+            letter-spacing:
+                1.4px;
+
+            text-transform:
+                uppercase;
+
+            color:
+                #6FB0F7;
+
+            margin-bottom:
+                14px;
+
+        }
+
+
+        .youtube-form-grid {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+
+            gap:
+                12px;
+
+        }
+
+
+        .youtube-field {
+
+            display:
+                flex;
+
+            flex-direction:
+                column;
+
+            gap:
+                6px;
+
+            min-width:
+                0;
+
+        }
+
+
+        .youtube-field-full {
+
+            grid-column:
+                1 / -1;
+
+        }
+
+
+        .youtube-field label {
+
+            font-size:
+                11px;
+
+            font-weight:
+                700;
+
+            color:
+                #9aa4b0;
+
+        }
+
+
+        .youtube-optional {
+
+            color:
+                #5B7CA6;
+
+            font-weight:
+                600;
+
+        }
+
+
+        .youtube-field input,
+        .youtube-field select,
+        .youtube-field textarea {
+
+            width:
+                100%;
+
+            background:
+                rgba(147, 197, 253, 0.4);
+
+            border:
+                1px solid var(--border);
+
+            border-radius:
+                11px;
+
+            color:
+                black;
+
+            padding:
+                10px 12px;
+
+            font-size:
+                13px;
+
+            outline:
+                none;
+
+            box-sizing:
+                border-box;
+
+        }
+
+
+        .youtube-field textarea {
+
+            resize:
+                none;
+
+            overflow-y:
+                hidden;
+
+            min-height:
+                118px;
+
+            line-height:
+                1.5;
+
+            font-family:
+                inherit;
+
+        }
+
+
+        .youtube-field input:focus,
+        .youtube-field select:focus,
+        .youtube-field textarea:focus {
+
+            border-color:
+                rgba(46, 125, 224, 0.55);
+
+            box-shadow:
+                0 0 0 3px rgba(46, 125, 224, 0.10);
+
+        }
+
+
+        .youtube-hint {
+
+            font-size:
+                10.5px;
+
+            color:
+                #5B7CA6;
+
+        }
+
+
+        .youtube-modal-result {
+
+            margin-top:
+                16px;
+
+            padding:
+                13px 14px;
+
+            border-radius:
+                12px;
+
+            font-size:
+                13px;
+
+            line-height:
+                1.55;
+
+            word-break:
+                break-word;
+
+        }
+
+
+        .youtube-modal-result[hidden] {
+
+            display:
+                none;
+
+        }
+
+
+        .youtube-modal-result.error {
+
+            background:
+                rgba(255, 92, 92, 0.10);
+
+            border:
+                1px solid rgba(255, 92, 92, 0.28);
+
+            color:
+                #ffb3b3;
+
+        }
+
+
+        .youtube-modal-result.success {
+
+            background:
+                rgba(46, 125, 224, 0.08);
+
+            border:
+                1px solid rgba(46, 125, 224, 0.30);
+
+            color:
+                hsl(108, 86%, 31%);
+
+        }
+
+
+        .youtube-modal-result a {
+
+            color:
+                #5B9DF8;
+
+            font-weight:
+                700;
+
+        }
+
+
+        .youtube-actions {
+
+            display:
+                flex;
+
+            gap:
+                10px;
+
+            justify-content:
+                flex-end;
+
+            padding-top:
+                18px;
+
+        }
+
+
+        .youtube-actions button {
+
+            padding:
+                10px 20px;
+
+            font-size:
+                13px;
+
+        }
+
+
+        .youtube-actions .primary-button:disabled {
+
+            opacity:
+                0.5;
+
+            cursor:
+                wait;
+
+        }
+
+
+        /* ==================================================
+           RESPONSIVE
+        ================================================== */
+
+        @media (max-width: 900px) {
+
+            .hero-content {
+
+                align-items:
+                    flex-start;
+
+                flex-direction:
+                    column;
+
+            }
+
+
+            .hero-status {
+
+                align-items:
+                    flex-start;
+
+            }
+
+
+            .stage-grid {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+        }
+
+
+        @media (max-width: 760px) {
+
+            .youtube-form-grid {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+            .container {
+
+                width:
+                    min(94%, 620px);
+
+                padding-top:
+                    20px;
+
+            }
+
+
+            .hero {
+
+                min-height:
+                    auto;
+
+                padding:
+                    25px;
+
+                border-radius:
+                    22px;
+
+            }
+
+
+            .brand {
+
+                gap:
+                    15px;
+
+            }
+
+
+            .monkey-logo {
+
+                width:
+                    76px;
+
+                height:
+                    76px;
+
+                border-radius:
+                    19px;
+
+            }
+
+
+            .monkey-logo span {
+
+                font-size:
+                    38px;
+
+            }
+
+
+            .brand h1 {
+
+                font-size:
+                    31px;
+
+                letter-spacing:
+                    -1.5px;
+
+            }
+
+
+            .subtitle {
+
+                font-size:
+                    12px;
+
+            }
+
+
+            .episodes {
+
+                grid-template-columns:
+                    repeat(auto-fit,
+                        minmax(220px,
+                            1fr));
+
+            }
+
+        }
+
+
+        @media (max-width: 480px) {
+
+            .episodes {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+
+            .topbar {
+
+                align-items:
+                    stretch;
+
+            }
+
+
+            .topbar .episode-controls {
+
+                width:
+                    100%;
+
+            }
+
+
+            .topbar .episode-controls .primary-button {
+
+                width:
+                    100%;
+
+            }
+
+
+            .topbar .create-episode-group {
+
+                flex-direction:
+                    column;
+
+                align-items:
+                    stretch;
+
+                width:
+                    100%;
+
+            }
+
+
+            .topbar .create-episode-group .prompt-only-option {
+
+                justify-content:
+                    center;
+
+                margin-top:
+                    4px;
+
+            }
+
+
+            .section-heading {
+
+                width:
+                    100%;
+
+            }
+
+        }
+    </style>
+
+</head>
+
+
+<body>
+
+    <div class="container">
+
+
+        <!-- ==================================================
+             HERO
+        ================================================== -->
+
+        <header class="hero">
+
+            <div class="hero-grid"></div>
+
+
+            <div class="hero-content">
+
+                <div class="brand">
+
+                    <div class="monkey-logo">
+
+                        <span>
+                            🤔
+                        </span>
+
+                    </div>
+
+
+                    <div>
+
+                        <h1>
+                            CURIOUS <span>ABOUT</span> THINGS
+                        </h1>
+
+
+                        <div class="subtitle">
+                            Shorts Studio · Create. Generate. Repeat.
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="hero-status">
+
+                    <div class="status-pill">
+
+                        <div class="status-dot"></div>
+
+                        SYSTEM ONLINE
+
+                    </div>
+
+
+                    <div class="status-caption">
+                        AI production environment
+                    </div>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- ==================================================
+             TABS
+        ================================================== -->
+
+        <nav class="tabs" role="tablist">
+
+            <button class="tab-button active" data-tab="shorts" type="button" role="tab" aria-selected="true"
+                onclick="switchTab('shorts')">
+                Shorts
+            </button>
+
+            <button class="tab-button" data-tab="videos" type="button" role="tab" aria-selected="false"
+                onclick="switchTab('videos')">
+                Videos
+            </button>
+
+        </nav>
+
+
+        <div id="shortsPanel" class="tab-panel" data-tab="shorts">
+
+
+            <!-- ==================================================
+             EPISODES HEADER
+        ================================================== -->
+
+            <div class="topbar">
+
+                <div class="section-heading">
+
+                    <div class="section-icon">
+                        🎬
+                    </div>
+
+
+                    <h2>
+                        Episodes
+                    </h2>
+
+
+                    <div id="episodeCount" class="episode-count">
+                        0
+                    </div>
+
+                </div>
+
+
+                <div class="episode-controls">
+
+                    <button id="replayToggleButton" class="replay-toggle" type="button"
+                        aria-label="Enable automatic replay" aria-pressed="false"
+                        title="Automatically create the next episode when generation completes"
+                        onclick="toggleReplay()">
+                        ↻
+                    </button>
+
+                    <div class="create-episode-group">
+
+                        <input id="topicHintInput" class="topic-hint" type="text"
+                            placeholder="Optional: topic or instruction for the AI…" maxlength="300" />
+
+                        <button id="createEpisodeButton" class="primary-button" onclick="createEpisode()">
+                            ＋ Create New Episode
+                        </button>
+
+                        <label class="prompt-only-option" for="promptOnlyCheckbox">
+                            <input type="checkbox" id="promptOnlyCheckbox" checked />
+                            Prompt Only
+                        </label>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ==================================================
+             GENERATION PROGRESS
+        ================================================== -->
+
+            <div class="progress-section">
+
+                <div class="progress-title">
+                    Generation Progress
+                </div>
+
+
+                <div id="progressWrapper" class="progress-wrapper">
+
+                    <div class="stage-grid">
+
+
+                        <!-- PROMPT STAGE -->
+
+                        <div id="promptStage" class="stage-card">
+
+                            <div class="stage-header">
+
+                                <div class="stage-name">
+                                    Prompt Generation
+                                </div>
+
+
+                                <div id="promptStageStatus" class="stage-status">
+
+                                    <span class="stage-status-dot"></span>
+
+                                    <span>
+                                        Waiting
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="stage-bar">
+
+                                <div id="promptProgressFill" class="stage-fill"></div>
+
+                            </div>
+
+
+                            <div class="stage-footer">
+
+                                <div id="promptProgressMessage" class="stage-message">
+                                    Waiting to start.
+                                </div>
+
+
+                                <div id="promptProgressPercent" class="stage-percent">
+                                    0%
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- VIDEO STAGE -->
+
+                        <div id="videoStage" class="stage-card">
+
+                            <div class="stage-header">
+
+                                <div class="stage-name">
+                                    Video Generation
+                                </div>
+
+
+                                <div id="videoStageStatus" class="stage-status">
+
+                                    <span class="stage-status-dot"></span>
+
+                                    <span>
+                                        Waiting
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="stage-bar">
+
+                                <div id="videoProgressFill" class="stage-fill"></div>
+
+                            </div>
+
+
+                            <div class="stage-footer">
+
+                                <div id="videoProgressMessage" class="stage-message">
+                                    Waiting to start.
+                                </div>
+
+
+                                <div id="videoProgressPercent" class="stage-percent">
+                                    0%
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="progress-summary">
+
+                        <span id="progressSummary">
+                            Ready.
+                        </span>
+
+
+                        <strong id="activeStageLabel">
+                            Idle
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div id="error" class="error"></div>
+
+            </div>
+
+
+            <!-- ==================================================
+             EPISODE GRID
+        ================================================== -->
+
+            <div id="episodes" class="episodes">
+
+                <div class="empty">
+                    Loading episodes...
+                </div>
+
+            </div>
+
+
+        </div>
+
+
+        <!-- ==================================================
+             VIDEOS TAB (placeholder)
+        ================================================== -->
+
+        <div id="videosPanel" class="tab-panel" data-tab="videos" hidden>
+
+            <div class="videos-placeholder">
+
+                <div class="videos-placeholder-icon">
+                    🎞️
+                </div>
+
+                <h3>
+                    Long-form videos
+                </h3>
+
+                <p>
+                    Long-form video generation and compilations are
+                    coming soon.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ==================================================
+             FOOTER
+        ================================================== -->
+
+        <div class="footer">
+
+            🤔
+
+            <span>
+                CURIOUS ABOUT THINGS
+            </span>
+
+            · SHORTS STUDIO
+
+        </div>
+
+    </div>
+
+
+    <!-- ==================================================
+             YOUTUBE UPLOAD MODAL
+        ================================================== -->
+
+    <div id="youtubeModal" class="youtube-modal" hidden>
+
+        <div class="youtube-modal-backdrop" onclick="closeYoutubeUploadModal()"></div>
+
+
+        <div class="youtube-modal-panel" role="dialog" aria-modal="true" aria-labelledby="youtubeModalTitle">
+
+            <div class="youtube-modal-header">
+
+                <div>
+
+                    <div class="youtube-modal-title" id="youtubeModalTitle">
+                        Upload to YouTube
+                    </div>
+
+
+                    <div class="youtube-modal-subtitle" id="youtubeModalEpisode">
+                        Loading episode…
+                    </div>
+
+                </div>
+
+
+                <button type="button" class="youtube-modal-close" aria-label="Close"
+                    onclick="closeYoutubeUploadModal()">
+                    ✕
+                </button>
+
+            </div>
+
+
+            <div class="upload-done-row">
+
+                <label class="upload-done-toggle">
+
+                    <input type="checkbox" id="youtubeMarkedDone" onchange="toggleUploadDone('youtube', this)" />
+
+                    <span>Mark as Done (already uploaded to YouTube)</span>
+
+                </label>
+
+            </div>
+
+
+            <form class="youtube-form" id="youtubeUploadForm" autocomplete="off">
+
+                <div class="youtube-form-section">
+
+                    <div class="youtube-form-heading">
+                        Account
+                    </div>
+
+
+                    <div class="youtube-form-grid">
+
+                        <div class="youtube-field youtube-field-full">
+                            <label for="youtubeChannelName">Channel Name</label>
+                            <input id="youtubeChannelName" type="text" placeholder="Your YouTube channel name" />
+                            <div class="youtube-hint">Must exactly match a channel available to the authorized Google
+                                account.</div>
+                        </div>
+
+                        <div class="youtube-field">
+                            <label for="youtubeClientId">OAuth Client ID</label>
+                            <input id="youtubeClientId" type="password" placeholder="••••••••" />
+                        </div>
+
+
+                        <div class=" youtube-field">
+                            <label for="youtubeClientSecret">OAuth Client Secret</label>
+                            <input id="youtubeClientSecret" type="password" placeholder="••••••••"
+                                autocomplete="new-password" />
+                        </div>
+
+
+                        <div class="youtube-field">
+                            <label for="youtubeRefreshToken">Refresh Token</label>
+                            <input id="youtubeRefreshToken" type="password" placeholder="1//0b…"
+                                autocomplete="new-password" />
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="youtube-form-section">
+
+                    <div class="youtube-form-heading">
+                        Video Metadata
+                    </div>
+
+
+                    <div class="youtube-form-grid">
+
+                        <div class="youtube-field youtube-field-full">
+                            <label for="youtubeTitle">Title</label>
+                            <input id="youtubeTitle" type="text" />
+                        </div>
+
+
+                        <div class="youtube-field youtube-field-full">
+                            <label for="youtubeDescription">Description</label>
+                            <textarea id="youtubeDescription" rows="7"></textarea>
+                        </div>
+
+
+                        <div class="youtube-field youtube-field-full">
+                            <label for="youtubeTags">Tags</label>
+                            <input id="youtubeTags" type="text" placeholder="#Shorts, #AI, keyword…" />
+                            <div class="youtube-hint">Comma separated.</div>
+                        </div>
+
+
+                        <div class="youtube-field">
+                            <label for="youtubeCategoryId">Category ID</label>
+                            <input id="youtubeCategoryId" type="text" placeholder="24" />
+                            <div class="youtube-hint">YouTube category. "24" = Entertainment.</div>
+                        </div>
+
+
+                        <div class="youtube-field">
+                            <label for="youtubePrivacyStatus">Privacy Status</label>
+                            <select id="youtubePrivacyStatus">
+                                <option value="private">Private</option>
+                                <option value="unlisted">Unlisted</option>
+                                <option value="public">Public</option>
+                            </select>
+                        </div>
+
+
+                        <div class="youtube-field">
+                            <label for="youtubeMadeForKids">Made for Kids</label>
+                            <select id="youtubeMadeForKids">
+                                <option value="false">No</option>
+                                <option value="true">Yes</option>
+                            </select>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div id="youtubeModalResult" class="youtube-modal-result" hidden></div>
+
+
+                <div class="youtube-actions">
+
+                    <button type="button" class="secondary" onclick="closeYoutubeUploadModal()">
+                        Cancel
+                    </button>
+
+
+                    <button type="button" class="primary-button" id="youtubeSubmitButton"
+                        onclick="submitYoutubeUpload()">
+                        Upload Short
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- ==================================================
+             INSTAGRAM UPLOAD MODAL
+        ================================================== -->
+
+    <div id="instagramModal" class="youtube-modal" hidden>
+
+        <div class="youtube-modal-backdrop" onclick="closeInstagramUploadModal()"></div>
+
+
+        <div class="youtube-modal-panel" role="dialog" aria-modal="true" aria-labelledby="instagramModalTitle">
+
+            <div class="youtube-modal-header">
+
+                <div>
+
+                    <div class="youtube-modal-title" id="instagramModalTitle">
+                        Upload to Instagram
+                    </div>
+
+
+                    <div class="youtube-modal-subtitle" id="instagramModalEpisode">
+                        Loading episode…
+                    </div>
+
+                </div>
+
+
+                <button type="button" class="youtube-modal-close" aria-label="Close"
+                    onclick="closeInstagramUploadModal()">
+                    ✕
+                </button>
+
+            </div>
+
+
+            <div class="upload-done-row">
+
+                <label class="upload-done-toggle">
+
+                    <input type="checkbox" id="instagramMarkedDone" onchange="toggleUploadDone('instagram', this)" />
+
+                    <span>Mark as Done (already uploaded to Instagram)</span>
+
+                </label>
+
+            </div>
+
+
+            <form class="youtube-form" id="instagramUploadForm" autocomplete="off">
+
+                <div class="youtube-form-section">
+
+                    <div class="youtube-form-heading">
+                        Account
+                    </div>
+
+
+                    <div class="youtube-form-grid">
+
+
+                        <div class="youtube-field youtube-field-full">
+                            <label for="instagramAccessToken">Access Token</label>
+                            <input id="instagramAccessToken" type="password" />
+                            <div class="youtube-hint">Long-lived Meta user token with instagram_content_publish.</div>
+                        </div>
+
+
+                        <div class="youtube-field youtube-field-full">
+                            <label for="instagramUserId">Instagram User ID</label>
+                            <input id="instagramUserId" type="password" />
+                            <div class="youtube-hint">ID of the Business/Creator account to publish to.</div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="youtube-form-section">
+
+                    <div class="youtube-form-heading">
+                        Post
+                    </div>
+
+
+                    <div class="youtube-form-grid">
+
+
+                        <div class="youtube-field youtube-field-full">
+                            <label for="instagramCaption">Caption</label>
+                            <textarea id="instagramCaption" rows="7"></textarea>
+                            <div class="youtube-hint">Prefilled with title, summary and hashtags. Editable before
+                                posting.</div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div id="instagramModalResult" class="youtube-modal-result" hidden></div>
+
+
+                <div class="youtube-actions">
+
+                    <button type="button" class="secondary" onclick="closeInstagramUploadModal()">
+                        Cancel
+                    </button>
+
+
+                    <button type="button" class="primary-button" id="instagramSubmitButton"
+                        onclick="submitInstagramPublish()">
+                        Publish Reel
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- ==================================================
+             DELETE EPISODE CONFIRM MODAL
+        ================================================== -->
+
+    <div id="deleteConfirmModal" class="youtube-modal" hidden>
+
+        <div class="youtube-modal-backdrop" onclick="closeDeleteConfirmModal()"></div>
+
+
+        <div class="youtube-modal-panel delete-confirm-panel" role="dialog" aria-modal="true"
+            aria-labelledby="deleteConfirmTitle">
+
+            <div class="youtube-modal-header">
+
+                <div>
+
+                    <div class="youtube-modal-title" id="deleteConfirmTitle">
+                        Delete episode?
+                    </div>
+
+
+                    <div class="youtube-modal-subtitle" id="deleteConfirmEpisode">
+                        Episode
+                    </div>
+
+                </div>
+
+
+                <button type="button" class="youtube-modal-close" aria-label="Close"
+                    onclick="closeDeleteConfirmModal()">
+                    ✕
+                </button>
+
+            </div>
+
+
+            <div class="delete-confirm-body">
+
+                <p>
+                    This will permanently delete this episode's
+                    <strong>prompt.txt</strong> and <strong>episode.txt</strong>.
+                    The episode will return to the Generate Prompt state.
+                </p>
+
+
+                <p class="delete-confirm-warning">
+                    This action cannot be undone.
+                </p>
+
+            </div>
+
+
+            <div class="delete-confirm-footer">
+
+                <div class="youtube-actions">
+
+                    <button type="button" class="secondary" onclick="closeDeleteConfirmModal()">
+                        Cancel
+                    </button>
+
+
+                    <button type="button" class="danger-button" onclick="confirmDeleteEpisode()">
+                        Delete
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script>
+
+        let statusTimer =
+            null;
+
+
+        let jobRunning =
+            false;
+
+
+        let lastStatus =
+            null;
+
+
+        let activeEpisodeId =
+            null;
+
+
+        let highlightLatestEpisode =
+            false;
+
+
+        /*
+         * Most recently fetched episode list (newest first,
+         * matching the server sort) and state for the optimistic
+         * "generating" card shown immediately on Create New Episode.
+         */
+
+        let latestEpisodes =
+            [];
+
+        let optimisticEpisode =
+            null;
+
+
+        let expandedPromptEpisodeId =
+            null;
+
+
+        let replayEnabled =
+            false;
+
+
+        let replayStarting =
+            false;
+
+
+        async function api(
+            url,
+            options = {}
+        ) {
+
+            const response =
+                await fetch(
+                    url,
+                    options
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Request failed."
+                );
+
+            }
+
+
+            return data;
+
+        }
+
+
+        function switchTab(
+            tabName
+        ) {
+
+            const tabs =
+                document.querySelectorAll(
+                    ".tab-button"
+                );
+
+            const panels =
+                document.querySelectorAll(
+                    ".tab-panel"
+                );
+
+
+            tabs.forEach(
+                tab => {
+
+                    const isActive =
+                        tab.dataset.tab
+                        === tabName;
+
+                    tab.classList.toggle(
+                        "active",
+                        isActive
+                    );
+
+                    tab.setAttribute(
+                        "aria-selected",
+                        isActive
+                            ? "true"
+                            : "false"
+                    );
+
+                }
+            );
+
+
+            panels.forEach(
+                panel => {
+
+                    panel.hidden =
+                        panel.dataset.tab
+                        !== tabName;
+
+                }
+            );
+
+        }
+
+
+        function setGenerationButtonsDisabled(
+            disabled
+        ) {
+
+            jobRunning =
+                disabled;
+
+
+            const createButton =
+                document.getElementById(
+                    "createEpisodeButton"
+                );
+
+
+            if (createButton) {
+
+                createButton.disabled =
+                    disabled;
+
+            }
+
+            const replayButton =
+                document.getElementById(
+                    "replayToggleButton"
+                );
+
+            if (replayButton) {
+
+                replayButton.disabled =
+                    disabled;
+
+            }
+
+
+            document
+                .querySelectorAll(
+                    ".generate-video-button, .generate-prompt-button"
+                )
+                .forEach(
+                    button => {
+
+                        button.disabled =
+                            disabled;
+
+                    }
+                );
+
+        }
+
+
+        function toggleReplay() {
+
+            if (jobRunning) {
+
+                return;
+
+            }
+
+            replayEnabled =
+                !replayEnabled;
+
+            updateReplayButton();
+
+        }
+
+
+        function updateReplayButton() {
+
+            const button =
+                document.getElementById(
+                    "replayToggleButton"
+                );
+
+            if (!button) {
+
+                return;
+
+            }
+
+            button.classList.toggle(
+                "active",
+                replayEnabled
+            );
+
+            button.setAttribute(
+                "aria-pressed",
+                String(replayEnabled)
+            );
+
+            button.setAttribute(
+                "aria-label",
+                replayEnabled
+                    ? "Disable automatic replay"
+                    : "Enable automatic replay"
+            );
+
+            button.title =
+                replayEnabled
+                    ? "Automatic replay is on"
+                    : "Automatically create the next episode when generation completes";
+
+        }
+
+
+        function setActiveEpisode(
+            episodeId
+        ) {
+
+            activeEpisodeId =
+                episodeId
+                    ? String(
+                        episodeId
+                    )
+                    : null;
+
+
+            highlightEpisodeCards();
+
+        }
+
+
+        function clearActiveEpisode() {
+
+            activeEpisodeId =
+                null;
+
+            highlightLatestEpisode =
+                false;
+
+            optimisticEpisode =
+                null;
+
+            highlightEpisodeCards();
+
+        }
+
+
+        function highlightEpisodeCards() {
+
+            const cards =
+                Array.from(
+                    document.querySelectorAll(
+                        ".episode-card"
+                    )
+                );
+
+
+            cards.forEach(
+                card => {
+
+                    card.classList.remove(
+                        "active",
+                        "generating"
+                    );
+
+                }
+            );
+
+
+            if (
+                !cards.length
+            ) {
+
+                return;
+
+            }
+
+
+            /*
+             * The episode currently being generated is identified
+             * by the server flag ("generating"), or is our
+             * optimistic placeholder. It receives the prominent
+             * pulsing highlight.
+             */
+
+            let generatingCard =
+                null;
+
+
+            if (
+                jobRunning
+            ) {
+
+                generatingCard =
+                    cards.find(
+                        card =>
+                            card.dataset.generating === "true"
+                    ) || null;
+
+
+                /*
+                 * When generating a video for an existing episode
+                 * there is no server "generating" flag, but the
+                 * active episode is the one being generated.
+                 */
+
+                if (
+                    !generatingCard &&
+                    activeEpisodeId
+                ) {
+
+                    generatingCard =
+                        cards.find(
+                            card =>
+                                card.dataset.episodeId === activeEpisodeId
+                        ) || null;
+
+                }
+
+            }
+
+
+            let targetCard =
+                generatingCard;
+
+
+            if (
+                !targetCard &&
+                activeEpisodeId
+            ) {
+
+                targetCard =
+                    cards.find(
+                        card =>
+                            card.dataset.episodeId === activeEpisodeId
+                    ) || null;
+
+            }
+
+
+            if (
+                !targetCard &&
+                highlightLatestEpisode
+            ) {
+
+                /*
+                 * The grid renders newest-first, so the latest
+                 * episode is the first card in the grid.
+                 */
+
+                targetCard =
+                    cards[0];
+
+            }
+
+
+            if (
+                generatingCard
+            ) {
+
+                generatingCard.classList.add(
+                    "active"
+                );
+
+                generatingCard.classList.add(
+                    "generating"
+                );
+
+            }
+
+
+            if (
+                targetCard &&
+                targetCard !== generatingCard
+            ) {
+
+                targetCard.classList.add(
+                    "active"
+                );
+
+            }
+
+        }
+
+
+        function escapeCssSelector(
+            value
+        ) {
+
+            return String(
+                value
+            ).replace(
+                /["\\]/g,
+                "\\$&"
+            );
+
+        }
+
+
+        async function createEpisode() {
+
+            if (jobRunning) {
+
+                return;
+
+            }
+
+
+            const button =
+                document.getElementById(
+                    "createEpisodeButton"
+                );
+
+
+            button.disabled =
+                true;
+
+
+            clearError();
+
+
+            try {
+
+                const promptOnlyCheckbox =
+                    document.getElementById(
+                        "promptOnlyCheckbox"
+                    );
+
+
+                const promptOnly =
+                    promptOnlyCheckbox
+                        ? promptOnlyCheckbox.checked
+                        : false;
+
+
+                const topicHintInput =
+                    document.getElementById(
+                        "topicHintInput"
+                    );
+
+
+                const instruction =
+                    topicHintInput
+                        ? topicHintInput.value.trim()
+                        : "";
+
+
+                const response =
+                    await api(
+                        "/api/episode",
+                        {
+                            method:
+                                "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify(
+                                    {
+                                        prompt_only:
+                                            promptOnly,
+
+                                        instruction:
+                                            instruction
+                                    }
+                                )
+                        }
+                    );
+
+
+                highlightLatestEpisode =
+                    true;
+
+
+                let newEpisodeId =
+                    null;
+
+
+                if (
+                    response &&
+                    response.episode
+                ) {
+
+                    newEpisodeId =
+                        response.episode.path ||
+                        response.episode.id ||
+                        response.episode.episode_id;
+
+                } else if (
+                    response
+                ) {
+
+                    newEpisodeId =
+                        response.path ||
+                        response.id ||
+                        response.episode_id;
+
+                }
+
+
+                if (
+                    newEpisodeId
+                ) {
+
+                    setActiveEpisode(
+                        newEpisodeId
+                    );
+
+
+                    expandedPromptEpisodeId =
+                        newEpisodeId;
+
+                }
+
+
+                /*
+                 * Flag the generation job as running and show an
+                 * optimistic placeholder card immediately, so the
+                 * user can see that a new episode is being generated
+                 * even before the child process creates its directory.
+                 */
+
+                optimisticEpisode =
+                    computeOptimisticEpisode();
+
+
+                setGenerationButtonsDisabled(
+                    true
+                );
+
+
+                await loadEpisodes();
+
+
+                highlightEpisodeCards();
+
+
+                startStatusPolling();
+
+
+            } catch (error) {
+
+                optimisticEpisode =
+                    null;
+
+
+                clearActiveEpisode();
+
+
+                setGenerationButtonsDisabled(
+                    false
+                );
+
+
+                await loadEpisodes();
+
+
+                showError(
+                    error.message
+                );
+
+            }
+
+        }
+
+
+        async function generateVideo(
+            episodeId
+        ) {
+
+            if (jobRunning) {
+
+                return;
+
+            }
+
+
+            clearError();
+
+
+            try {
+
+                setActiveEpisode(
+                    episodeId
+                );
+
+
+                highlightLatestEpisode =
+                    false;
+
+
+                setGenerationButtonsDisabled(
+                    true
+                );
+
+
+                await api(
+                    "/api/video",
+                    {
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify(
+                                {
+                                    episode_id:
+                                        episodeId
+                                }
+                            )
+
+                    }
+                );
+
+
+                startStatusPolling();
+
+            } catch (error) {
+
+                clearActiveEpisode();
+
+                setGenerationButtonsDisabled(
+                    false
+                );
+
+
+                showError(
+                    error.message
+                );
+
+            }
+
+        }
+
+
+        async function generatePrompt(
+            episodeId
+        ) {
+
+            if (jobRunning) {
+
+                return;
+
+            }
+
+
+            clearError();
+
+
+            try {
+
+                setActiveEpisode(
+                    episodeId
+                );
+
+
+                expandedPromptEpisodeId =
+                    episodeId;
+
+
+                highlightLatestEpisode =
+                    false;
+
+
+                setGenerationButtonsDisabled(
+                    true
+                );
+
+
+                const topicHintInput =
+                    document.getElementById(
+                        "topicHintInput"
+                    );
+
+
+                const instruction =
+                    topicHintInput
+                        ? topicHintInput.value.trim()
+                        : "";
+
+
+                await api(
+                    "/api/episode/prompt",
+                    {
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify(
+                                {
+                                    episode_id:
+                                        episodeId,
+
+                                    instruction:
+                                        instruction
+                                }
+                            )
+
+                    }
+                );
+
+
+                startStatusPolling();
+
+            } catch (error) {
+
+                clearActiveEpisode();
+
+                setGenerationButtonsDisabled(
+                    false
+                );
+
+
+                showError(
+                    error.message
+                );
+
+            }
+
+        }
+
+
+        let deleteConfirmEpisodeId =
+            null;
+
+
+        function openDeleteConfirmModal(
+            episodeId
+        ) {
+
+            deleteConfirmEpisodeId =
+                episodeId;
+
+
+            document.getElementById(
+                "deleteConfirmEpisode"
+            ).textContent =
+                episodeId;
+
+
+            document.getElementById(
+                "deleteConfirmModal"
+            ).hidden =
+                false;
+
+        }
+
+
+        function closeDeleteConfirmModal() {
+
+            deleteConfirmEpisodeId =
+                null;
+
+
+            document.getElementById(
+                "deleteConfirmModal"
+            ).hidden =
+                true;
+
+        }
+
+
+        async function confirmDeleteEpisode() {
+
+            const episodeId =
+                deleteConfirmEpisodeId;
+
+
+            closeDeleteConfirmModal();
+
+
+            if (!episodeId) {
+
+                return;
+
+            }
+
+
+            await deleteEpisode(
+                episodeId
+            );
+
+        }
+
+
+        async function deleteEpisode(
+            episodeId
+        ) {
+
+            if (jobRunning) {
+
+                return;
+
+            }
+
+
+            clearError();
+
+
+            try {
+
+                await api(
+                    "/api/episode/delete",
+                    {
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify(
+                                {
+                                    episode_id:
+                                        episodeId
+                                }
+                            )
+
+                    }
+                );
+
+
+                await loadEpisodes();
+
+            } catch (error) {
+
+                showError(
+                    error.message
+                );
+
+            }
+
+        }
+
+
+        function startStatusPolling() {
+
+            const wrapper =
+                document.getElementById(
+                    "progressWrapper"
+                );
+
+
+            wrapper.classList.add(
+                "active"
+            );
+
+
+            setGenerationButtonsDisabled(
+                true
+            );
+
+
+            if (statusTimer) {
+
+                clearInterval(
+                    statusTimer
+                );
+
+            }
+
+
+            statusTimer =
+                setInterval(
+                    updateStatus,
+                    1500
+                );
+
+
+            updateStatus();
+
+        }
+
+
+        async function updateStatus() {
+
+            try {
+
+                const status =
+                    await api(
+                        "/api/status"
+                    );
+
+
+                const previousStatus =
+                    lastStatus;
+
+
+                lastStatus =
+                    status;
+
+
+                applyStatus(
+                    status
+                );
+
+
+                await refreshAfterStageCompletion(
+                    previousStatus,
+                    status
+                );
+
+
+                if (status.running) {
+
+                    setGenerationButtonsDisabled(
+                        true
+                    );
+
+
+                    /*
+                     * Avoid re-rendering the grid on every poll.
+                     * The only refreshes happen when a generation
+                     * job starts (Create New Episode) and at each
+                     * stage transition (prompt -> video completion),
+                     * handled by refreshAfterStageCompletion.
+                     * This keeps any already-loaded video previews
+                     * from being torn down and reloaded.
+                     */
+
+                    return;
+
+                }
+
+
+                if (statusTimer) {
+
+                    clearInterval(
+                        statusTimer
+                    );
+
+
+                    statusTimer =
+                        null;
+
+                }
+
+
+                /*
+                 * Always perform one final refresh when the
+                 * generation job reports that it has stopped.
+                 * This guarantees the latest prompt/video state
+                 * is visible even if the completion transition
+                 * happened between polling intervals.
+                 */
+
+                await loadEpisodes();
+
+                setGenerationButtonsDisabled(
+                    false
+                );
+
+                await startReplayIfComplete(
+                    status
+                );
+
+
+                /*
+                 * The job has stopped, so an optimistic placeholder
+                 * (if any) is no longer valid.
+                 */
+
+                optimisticEpisode =
+                    null;
+
+
+                let removedPlaceholders =
+                    0;
+
+
+                document
+                    .querySelectorAll(
+                        '.episode-card[data-optimistic="true"]'
+                    )
+                    .forEach(
+                        card => {
+
+                            card.remove();
+
+                            removedPlaceholders +=
+                                1;
+
+                        }
+                    );
+
+
+                if (
+                    removedPlaceholders
+                ) {
+
+                    const countElement =
+                        document.getElementById(
+                            "episodeCount"
+                        );
+
+
+                    countElement.textContent =
+                        Math.max(
+                            0,
+                            Number(
+                                countElement.textContent || 0
+                            ) -
+                            removedPlaceholders
+                        );
+
+                }
+
+
+                /*
+                 * Keep the completed episode highlighted
+                 * until the final refresh has rendered it.
+                 */
+
+                if (
+                    activeEpisodeId
+                ) {
+
+                    highlightEpisodeCards();
+
+                } else if (
+                    highlightLatestEpisode
+                ) {
+
+                    highlightEpisodeCards();
+
+                }
+
+
+            } catch (error) {
+
+                showError(
+                    error.message
+                );
+
+            }
+
+        }
+
+
+        function normalizeEpisodeId(
+            value
+        ) {
+
+            return String(
+                value ||
+                ""
+            )
+                .trim()
+                .replace(/\\/g, "/")
+                .replace(/\/+$/, "")
+                .toLowerCase();
+
+        }
+
+
+        async function startReplayIfComplete(
+            status
+        ) {
+
+            if (
+                !replayEnabled ||
+                replayStarting ||
+                status.error ||
+                normalizeProgress(
+                    status.prompt_progress
+                ) < 100 ||
+                normalizeProgress(
+                    status.video_progress
+                ) < 100
+            ) {
+
+                return;
+
+            }
+
+            /*
+             * Prefer the tracked active episode, but fall back to the
+             * newest fully-completed episode. The server currently
+             * returns only {"started": true} from POST /api/episode,
+             * so activeEpisodeId is not always known.
+             */
+
+            let completedEpisode =
+                null;
+
+
+            if (activeEpisodeId) {
+
+                const targetId =
+                    normalizeEpisodeId(
+                        activeEpisodeId
+                    );
+
+                completedEpisode =
+                    latestEpisodes.find(
+                        episode =>
+                            normalizeEpisodeId(
+                                episode.path
+                            ) === targetId
+                    );
+
+            }
+
+
+            if (
+                !completedEpisode ||
+                !completedEpisode.prompt_exists ||
+                !completedEpisode.video_exists
+            ) {
+
+                /*
+                 * Fall back to the newest fully-completed episode
+                 * (latestEpisodes is sorted newest-first).
+                 */
+
+                completedEpisode =
+                    latestEpisodes.find(
+                        episode =>
+                            episode.prompt_exists &&
+                            episode.video_exists &&
+                            !episode.generating
+                    );
+
+            }
+
+
+            if (
+                !completedEpisode ||
+                !completedEpisode.prompt_exists ||
+                !completedEpisode.video_exists
+            ) {
+
+                return;
+
+            }
+
+            replayStarting =
+                true;
+
+            try {
+
+                await createEpisode();
+
+            } finally {
+
+                replayStarting =
+                    false;
+
+            }
+
+        }
+
+
+        async function refreshAfterStageCompletion(
+            previousStatus,
+            currentStatus
+        ) {
+
+            if (
+                !previousStatus ||
+                !currentStatus
+            ) {
+
+                return;
+
+            }
+
+
+            /*
+             * A stage is considered complete when its status
+             * transitions to "complete", or as a safety net when
+             * its progress reaches 100%.
+             *
+             * Prompt completion refresh:
+             * the new title/prompt becomes visible immediately.
+             *
+             * Video completion refresh:
+             * the newly generated MP4 becomes visible immediately.
+             */
+
+            const promptCompleted =
+                hasStageCompleted(
+                    previousStatus.prompt_status,
+                    currentStatus.prompt_status
+                ) ||
+                (
+                    normalizeProgress(
+                        currentStatus.prompt_progress
+                    ) >= 100 &&
+                    normalizeProgress(
+                        previousStatus.prompt_progress
+                    ) < 100
+                );
+
+
+            const videoCompleted =
+                hasStageCompleted(
+                    previousStatus.video_status,
+                    currentStatus.video_status
+                ) ||
+                (
+                    normalizeProgress(
+                        currentStatus.video_progress
+                    ) >= 100 &&
+                    normalizeProgress(
+                        previousStatus.video_progress
+                    ) < 100
+                );
+
+
+            if (
+                promptCompleted ||
+                videoCompleted
+            ) {
+
+                await loadEpisodes();
+
+            }
+
+        }
+
+
+        function hasStageCompleted(
+            previousStatus,
+            currentStatus
+        ) {
+
+            const previous =
+                normalizeStageStatus(
+                    previousStatus
+                );
+
+
+            const current =
+                normalizeStageStatus(
+                    currentStatus
+                );
+
+
+            return (
+                current === "complete" &&
+                previous !== "complete"
+            );
+
+        }
+
+
+        function applyStatus(
+            status
+        ) {
+
+            const wrapper =
+                document.getElementById(
+                    "progressWrapper"
+                );
+
+
+            const activeStage =
+                normalizeActiveStage(
+                    status.active_stage
+                );
+
+
+            updateStageCard(
+                "prompt",
+                status.prompt_progress,
+                status.prompt_status,
+                status.prompt_message,
+                activeStage
+            );
+
+
+            updateStageCard(
+                "video",
+                status.video_progress,
+                status.video_status,
+                status.video_message,
+                activeStage
+            );
+
+
+            /*
+             * Backward compatibility with the older
+             * single-progress status response.
+             *
+             * If the server does not yet provide the
+             * stage-specific fields, the legacy progress
+             * is represented on the currently active stage.
+             */
+
+            if (
+                status.prompt_progress === undefined &&
+                status.video_progress === undefined
+            ) {
+
+                applyLegacyProgress(
+                    status,
+                    activeStage
+                );
+
+            }
+
+
+            const progress =
+                Number(
+                    status.progress || 0
+                );
+
+
+            const summary =
+                document.getElementById(
+                    "progressSummary"
+                );
+
+
+            const activeLabel =
+                document.getElementById(
+                    "activeStageLabel"
+                );
+
+
+            summary.textContent =
+                status.message ||
+                (
+                    status.running
+                        ? "Working..."
+                        : "Ready."
+                );
+
+
+            activeLabel.textContent =
+                getActiveStageLabel(
+                    activeStage,
+                    status.running
+                );
+
+
+            if (
+                status.running ||
+                progress > 0 ||
+                hasStageActivity(status)
+            ) {
+
+                wrapper.classList.add(
+                    "active"
+                );
+
+            }
+
+
+            if (status.error) {
+
+                showError(
+                    status.error
+                );
+
+            }
+
+        }
+
+
+        function updateStageCard(
+            stage,
+            progressValue,
+            statusValue,
+            messageValue,
+            activeStage
+        ) {
+
+            const prefix =
+                stage === "prompt"
+                    ? "prompt"
+                    : "video";
+
+
+            const card =
+                document.getElementById(
+                    prefix + "Stage"
+                );
+
+
+            const fill =
+                document.getElementById(
+                    prefix + "ProgressFill"
+                );
+
+
+            const percent =
+                document.getElementById(
+                    prefix + "ProgressPercent"
+                );
+
+
+            const message =
+                document.getElementById(
+                    prefix + "ProgressMessage"
+                );
+
+
+            const statusElement =
+                document.getElementById(
+                    prefix + "StageStatus"
+                );
+
+
+            const normalizedStatus =
+                normalizeStageStatus(
+                    statusValue
+                );
+
+
+            const progress =
+                normalizeProgress(
+                    progressValue
+                );
+
+
+            fill.style.width =
+                progress +
+                "%";
+
+
+            percent.textContent =
+                progress +
+                "%";
+
+
+            message.textContent =
+                messageValue ||
+                getDefaultStageMessage(
+                    normalizedStatus,
+                    stage
+                );
+
+
+            card.classList.remove(
+                "active",
+                "complete",
+                "failed"
+            );
+
+
+            if (
+                normalizedStatus === "complete"
+            ) {
+
+                card.classList.add(
+                    "complete"
+                );
+
+            } else if (
+                normalizedStatus === "failed"
+            ) {
+
+                card.classList.add(
+                    "failed"
+                );
+
+            } else if (
+                activeStage === stage
+                ||
+                normalizedStatus === "running"
+            ) {
+
+                card.classList.add(
+                    "active"
+                );
+
+            }
+
+
+            const statusLabel =
+                getStageStatusLabel(
+                    normalizedStatus
+                );
+
+
+            statusElement.innerHTML =
+                `
+                    <span class="stage-status-dot"></span>
+                    <span>
+                        ${escapeHtml(
+                    statusLabel
+                )}
+                    </span>
+                `;
+
+        }
+
+
+        function applyLegacyProgress(
+            status,
+            activeStage
+        ) {
+
+            const progress =
+                normalizeProgress(
+                    status.progress
+                );
+
+
+            const message =
+                status.message ||
+                (
+                    status.running
+                        ? "Working..."
+                        : "Ready."
+                );
+
+
+            const targetStage =
+                activeStage === "video"
+                    ? "video"
+                    : "prompt";
+
+
+            const otherStage =
+                targetStage === "video"
+                    ? "prompt"
+                    : "video";
+
+
+            updateStageCard(
+                targetStage,
+                progress,
+                status.running
+                    ? "running"
+                    : (
+                        progress >= 100
+                            ? "complete"
+                            : "waiting"
+                    ),
+                message,
+                activeStage
+            );
+
+
+            if (
+                progress >= 100 &&
+                !status.running
+            ) {
+
+                updateStageCard(
+                    otherStage,
+                    0,
+                    "waiting",
+                    "Waiting to start.",
+                    activeStage
+                );
+
+            }
+
+        }
+
+
+        function normalizeActiveStage(
+            value
+        ) {
+
+            const stage =
+                String(
+                    value || ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            if (
+                stage === "prompt" ||
+                stage === "prompt_generation" ||
+                stage === "story" ||
+                stage === "story_generation"
+            ) {
+
+                return "prompt";
+
+            }
+
+
+            if (
+                stage === "video" ||
+                stage === "video_generation"
+            ) {
+
+                return "video";
+
+            }
+
+
+            return null;
+
+        }
+
+
+        function normalizeStageStatus(
+            value
+        ) {
+
+            const status =
+                String(
+                    value || ""
+                )
+                    .trim()
+                    .toLowerCase()
+                    .replace(
+                        /\.+$/,
+                        ""
+                    );
+
+
+            if (
+                status === "complete" ||
+                status === "completed" ||
+                status === "success" ||
+                status === "successful" ||
+                status === "done"
+            ) {
+
+                return "complete";
+
+            }
+
+
+            if (
+                status === "failed" ||
+                status === "failure" ||
+                status === "error" ||
+                status === "crashed" ||
+                status === "terminated" ||
+                status === "killed"
+            ) {
+
+                return "failed";
+
+            }
+
+
+            if (
+                status === "running" ||
+                status === "active" ||
+                status === "working" ||
+                status === "generating"
+            ) {
+
+                return "running";
+
+            }
+
+
+            return "waiting";
+
+        }
+
+
+        function normalizeProgress(
+            value
+        ) {
+
+            const number =
+                Number(
+                    value
+                );
+
+
+            if (
+                !Number.isFinite(
+                    number
+                )
+            ) {
+
+                return 0;
+
+            }
+
+
+            return Math.max(
+                0,
+                Math.min(
+                    100,
+                    Math.round(
+                        number
+                    )
+                )
+            );
+
+        }
+
+
+        function getStageStatusLabel(
+            status
+        ) {
+
+            if (
+                status === "complete"
+            ) {
+
+                return "Complete";
+
+            }
+
+
+            if (
+                status === "failed"
+            ) {
+
+                return "Failed";
+
+            }
+
+
+            if (
+                status === "running"
+            ) {
+
+                return "Generating";
+
+            }
+
+
+            return "Waiting";
+
+        }
+
+
+        function getDefaultStageMessage(
+            status,
+            stage
+        ) {
+
+            if (
+                status === "complete"
+            ) {
+
+                return "Generation complete.";
+
+            }
+
+
+            if (
+                status === "failed"
+            ) {
+
+                return "Generation failed.";
+
+            }
+
+
+            if (
+                status === "running"
+            ) {
+
+                return (
+                    stage === "prompt"
+                        ? "Generating prompt..."
+                        : "Generating video..."
+                );
+
+            }
+
+
+            return "Waiting to start.";
+
+        }
+
+
+        function getActiveStageLabel(
+            activeStage,
+            running
+        ) {
+
+            if (
+                activeStage === "prompt"
+            ) {
+
+                return "Prompt Generation";
+
+            }
+
+
+            if (
+                activeStage === "video"
+            ) {
+
+                return "Video Generation";
+
+            }
+
+
+            return running
+                ? "Generating"
+                : "Idle";
+
+        }
+
+
+        function hasStageActivity(
+            status
+        ) {
+
+            return (
+                status.prompt_progress !== undefined ||
+                status.video_progress !== undefined ||
+                status.prompt_status !== undefined ||
+                status.video_status !== undefined
+            );
+
+        }
+
+
+        async function restoreStatus() {
+
+            try {
+
+                const status =
+                    await api(
+                        "/api/status"
+                    );
+
+
+                lastStatus =
+                    status;
+
+
+                applyStatus(
+                    status
+                );
+
+
+                if (status.running) {
+
+                    setGenerationButtonsDisabled(
+                        true
+                    );
+
+
+                    /*
+                     * Highlight the latest episode if the page is
+                     * reloaded while a job is running, so the user
+                     * can still see which episode was being generated.
+                     */
+
+                    highlightLatestEpisode =
+                        true;
+
+
+                    startStatusPolling();
+
+                } else {
+
+                    setGenerationButtonsDisabled(
+                        false
+                    );
+
+                }
+
+            } catch (error) {
+
+                showError(
+                    error.message
+                );
+
+            }
+
+        }
+
+
+        async function loadEpisodes() {
+
+            const container =
+                document.getElementById(
+                    "episodes"
+                );
+
+
+            try {
+
+                const episodes =
+                    await api(
+                        "/api/episodes"
+                    );
+
+
+                latestEpisodes =
+                    episodes;
+
+
+                /*
+                 * Keep the grid newest-first so a freshly created
+                 * episode always appears at the top.
+                 */
+
+                latestEpisodes.sort(
+                    (a, b) =>
+                        Number(
+                            b.number || 0
+                        ) -
+                        Number(
+                            a.number || 0
+                        )
+                );
+
+
+                if (
+                    optimisticEpisode &&
+                    episodes.some(
+                        episode =>
+                            episode.path === optimisticEpisode.id
+                    )
+                ) {
+
+                    /*
+                     * The real episode has appeared in the output
+                     * directory, so the optimistic placeholder is
+                     * no longer needed.
+                     */
+
+                    optimisticEpisode =
+                        null;
+
+                }
+
+
+                const count =
+                    episodes.length +
+                    (
+                        optimisticEpisode
+                            ? 1
+                            : 0
+                    );
+
+
+                document
+                    .getElementById(
+                        "episodeCount"
+                    )
+                    .textContent =
+                    count;
+
+
+                renderEpisodeGrid();
+
+
+            } catch (error) {
+
+                container.innerHTML =
+                    '<div class="empty">' +
+                    escapeHtml(
+                        error.message
+                    ) +
+                    '</div>';
+
+            }
+
+        }
+
+
+        function renderEpisodeGrid() {
+
+            const container =
+                document.getElementById(
+                    "episodes"
+                );
+
+
+            if (
+                latestEpisodes.length
+            ) {
+
+                container.innerHTML =
+                    latestEpisodes
+                        .map(
+                            renderEpisode
+                        )
+                        .join("");
+
+            } else {
+
+                container.innerHTML =
+                    (
+                        optimisticEpisode
+                            ?
+                            ""
+                            :
+                            '<div class="empty">' +
+                            'No episodes yet. Create your first one!' +
+                            '</div>'
+                    );
+
+            }
+
+
+            renderOptimisticEpisode();
+
+
+            /*
+             * Clear the expanded prompt flag after rendering so the
+             * prompt stays open for the just-generated episode but
+             * collapses again on subsequent manual refreshes.
+             */
+
+            expandedPromptEpisodeId =
+                null;
+
+
+            setGenerationButtonsDisabled(
+                jobRunning
+            );
+
+
+            highlightEpisodeCards();
+
+        }
+
+
+        function renderEpisode(
+            episode
+        ) {
+
+            const number =
+                escapeHtml(
+                    episode.number
+                );
+
+
+            const title =
+                escapeHtml(
+                    episode.title ||
+                    "Prompt not available"
+                );
+
+
+            const prompt =
+                escapeHtml(
+                    episode.prompt
+                );
+
+
+            const summary =
+                escapeHtml(
+                    episode.summary ||
+                    ""
+                );
+
+
+            const episodeId =
+                escapeHtml(
+                    episode.path
+                );
+
+
+            let videoHtml =
+                "";
+
+
+            let actionHtml =
+                "";
+
+
+            const generatePromptActionHtml =
+                `
+
+                    <div class="episode-actions">
+
+                        <button
+                            class="primary-button generate-prompt-button"
+                            ${jobRunning ? "disabled" : ""}
+                            onclick="generatePrompt(
+                                '${escapeJs(
+                    episode.path
+                )}'
+                            )"
+                        >
+                            Generate Prompt
+                        </button>
+
+                    </div>
+
+                `;
+
+
+            if (
+                episode.video_exists &&
+                episode.video_path
+            ) {
+
+                const mediaPath =
+                    episode.video_path
+                        .split("/")
+                        .map(
+                            encodeURIComponent
+                        )
+                        .join("/");
+
+
+                videoHtml = `
+
+                    <div class="video-heading">
+
+                        <div class="label">
+                            Video
+                        </div>
+
+                        <div class="video-badge">
+                            Ready
+                        </div>
+
+                    </div>
+
+
+                    <div class="video-status">
+                        episode.mp4
+                    </div>
+
+
+                    <video
+                        controls
+                        preload="metadata"
+                        playsinline
+                        src="/media/${mediaPath}"
+                    ></video>
+
+                `;
+
+
+                if (
+                    episode.prompt_exists
+                ) {
+
+                    actionHtml = `
+
+                    <div class="episode-actions">
+
+                        <button
+                            class="secondary upload-button ${episode.uploaded && episode.uploaded.instagram ? "uploaded" : ""}"
+                            title="${episode.uploaded && episode.uploaded.instagram ? "Uploaded to Instagram" : "Upload to Instagram"}"
+                            onclick="openInstagramUploadModal(
+                                '${escapeJs(episode.path)}'
+                            )"
+                        >
+                            <svg class="platform-logo instagram-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.6" cy="6.4" r="1.3" fill="currentColor" stroke="none"/></svg>
+                            <span>Instagram</span>
+                            <span class="upload-done-check"><svg viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5 1.4-1.4L9 13.4l7.1-7.1 1.4 1.4z"/></svg></span>
+                        </button>
+
+                        <button
+                            class="secondary upload-button ${episode.uploaded && episode.uploaded.youtube ? "uploaded" : ""}"
+                            title="${episode.uploaded && episode.uploaded.youtube ? "Uploaded to YouTube" : "Upload to YouTube"}"
+                            onclick="openYoutubeUploadModal(
+                                '${escapeJs(episode.path)}'
+                            )"
+                        >
+                            <svg class="platform-logo youtube-logo" viewBox="0 0 28 20"><path fill="#FF0000" d="M27.4 3.1A3.5 3.5 0 0 0 25 .7C22.8 0 14 0 14 0S5.2 0 3 .7A3.5 3.5 0 0 0 .6 3.1C0 5.3 0 10 0 10s0 4.7.6 6.9A3.5 3.5 0 0 0 3 19.3c2.2.7 11 .7 11 .7s8.8 0 11-.7a3.5 3.5 0 0 0 2.4-2.4c.6-2.2.6-6.9.6-6.9s0-4.7-.6-6.9z"/><path fill="#fff" d="M11.2 14.3V5.7L18.5 10z"/></svg>
+                            <span>YouTube</span>
+                            <span class="upload-done-check"><svg viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5 1.4-1.4L9 13.4l7.1-7.1 1.4 1.4z"/></svg></span>
+                        </button>
+
+                    </div>
+
+                `;
+
+                } else {
+
+                    actionHtml =
+                        generatePromptActionHtml;
+
+                }
+
+            } else {
+
+                videoHtml = `
+
+                    <div class="video-heading">
+
+                        <div class="label">
+                            Video
+                        </div>
+
+                    </div>
+
+
+                    <div class="video-status">
+                        No video generated yet.
+                    </div>
+
+                `;
+
+
+                if (
+                    episode.prompt_exists
+                ) {
+
+                    actionHtml = `
+
+                    <div class="episode-actions">
+
+                        <button
+                            class="primary-button generate-video-button"
+                            ${jobRunning ? "disabled" : ""}
+                            onclick="generateVideo(
+                                '${escapeJs(
+                        episode.path
+                    )}'
+                            )"
+                        >
+                            Generate Video
+                        </button>
+
+                    </div>
+
+                `;
+
+                } else {
+
+                    actionHtml =
+                        generatePromptActionHtml;
+
+                }
+
+            }
+
+
+            return `
+
+                <article
+                    class="episode-card"
+                    data-episode-id="${episodeId}"
+                    data-generating="${episode.generating ? "true" : "false"}"
+                >
+
+                    <div class="episode-generating-badge">
+                        <span class="episode-generating-dot"></span>
+                        Generating…
+                    </div>
+
+
+                    <div class="episode-header">
+
+                        <div class="episode-number">
+                            #${number}
+                        </div>
+
+                        <button
+                            type="button"
+                            class="episode-delete-button"
+                            title="Reset episode (delete prompt and episode files)"
+                            onclick="openDeleteConfirmModal(
+                                '${escapeJs(episode.path)}'
+                            )"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                        </button>
+
+                    </div>
+
+
+                    <div class="episode-content">
+
+                        <div>
+
+                            <div class="label">
+                                Title
+                            </div>
+
+
+                            ${episode.prompt_exists
+                    ?
+                    `
+
+                                        <div class="title">
+                                            ${title}
+                                        </div>
+
+                                    `
+                    :
+                    `
+
+                                        <div class="prompt-empty">
+                                            Prompt not available.
+                                        </div>
+
+                                    `
+                }
+
+                            ${episode.prompt_exists
+                    ?
+                    `
+
+                                        <div class="section-label">
+                                            Summary
+                                        </div>
+
+
+                                        <div class="summary">
+                                            ${summary ||
+                    "Summary not available for this episode."}
+                                        </div>
+
+
+                                        <details class="prompt-toggle"${normalizeEpisodeId(episode.path) === normalizeEpisodeId(expandedPromptEpisodeId) ? " open" : ""}>
+
+                                            <summary>
+                                                View full prompt
+                                            </summary>
+
+
+                                            <div class="section-label">
+                                                Prompt
+                                            </div>
+
+
+                                            <div class="prompt">
+                                                ${prompt}
+                                            </div>
+
+                                        </details>
+
+                                    `
+                    :
+                    ""
+                }
+
+                        </div>
+
+
+                        <div class="video-panel">
+
+                            ${videoHtml}
+
+                        </div>
+
+                    </div>
+
+
+                    ${actionHtml}
+
+                </article>
+
+            `;
+
+        }
+
+
+        function computeOptimisticEpisode() {
+
+            /*
+             * Predicts the id/number of the next episode so the UI
+             * can show a placeholder card immediately when the user
+             * clicks "Create New Episode".
+             *
+             * The backend assigns episode directories sequentially
+             * (highest existing number + 1) under media/output/shorts/,
+             * so this matches as long as an episode list has been
+             * loaded.
+             */
+
+            if (
+                !latestEpisodes.length
+            ) {
+
+                return null;
+
+            }
+
+
+            const numbers =
+                latestEpisodes
+                    .map(
+                        episode =>
+                            Number(
+                                episode.number
+                            ) || 0
+                    );
+
+
+            const nextNumber =
+                String(
+                    Math.max(...numbers) + 1
+                );
+
+
+            return {
+                id: `media/output/shorts/${nextNumber}`,
+                number: nextNumber
+            };
+
+        }
+
+
+        function renderOptimisticEpisode() {
+
+            const container =
+                document.getElementById(
+                    "episodes"
+                );
+
+
+            if (
+                !container ||
+                !optimisticEpisode
+            ) {
+
+                return null;
+
+            }
+
+
+            if (
+                container.querySelector(
+                    '.episode-card[data-optimistic="true"]'
+                )
+            ) {
+
+                return null;
+
+            }
+
+
+            const card =
+                document.createElement(
+                    "article"
+                );
+
+
+            card.className =
+                "episode-card";
+
+
+            card.dataset.episodeId =
+                optimisticEpisode.id;
+
+            card.dataset.generating =
+                "true";
+
+            card.dataset.optimistic =
+                "true";
+
+
+            card.innerHTML =
+                `
+                    <div class="episode-generating-badge">
+                        <span class="episode-generating-dot"></span>
+                        Generating…
+                    </div>
+
+                    <div class="episode-header">
+                        <div class="episode-number">
+                            #${optimisticEpisode.number}
+                        </div>
+                    </div>
+
+                    <div class="episode-content">
+                        <div>
+                            <div class="label">
+                                Prompt
+                            </div>
+                            <div class="prompt-empty">
+                                Preparing episode…
+                            </div>
+                        </div>
+                        <div class="video-panel">
+                            <div class="video-heading">
+                                <div class="label">
+                                    Video
+                                </div>
+                            </div>
+                            <div class="video-status">
+                                Waiting for generation to begin.
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+
+            container.prepend(
+                card
+            );
+
+
+            return card;
+
+        }
+
+
+        function showError(
+            message
+        ) {
+
+            const element =
+                document.getElementById(
+                    "error"
+                );
+
+
+            element.textContent =
+                message;
+
+
+            element.style.display =
+                "block";
+
+        }
+
+
+        function clearError() {
+
+            const element =
+                document.getElementById(
+                    "error"
+                );
+
+
+            element.textContent =
+                "";
+
+
+            element.style.display =
+                "none";
+
+        }
+
+
+        function escapeHtml(
+            value
+        ) {
+
+            return String(
+                value
+            )
+                .replaceAll(
+                    "&",
+                    "&amp;"
+                )
+                .replaceAll(
+                    "<",
+                    "&lt;"
+                )
+                .replaceAll(
+                    ">",
+                    "&gt;"
+                )
+                .replaceAll(
+                    '"',
+                    "&quot;"
+                )
+                .replaceAll(
+                    "'",
+                    "&#039;"
+                );
+
+        }
+
+
+        function escapeJs(
+            value
+        ) {
+
+            return String(
+                value
+            )
+                .replaceAll(
+                    "\\",
+                    "\\\\"
+                )
+                .replaceAll(
+                    "'",
+                    "\\'"
+                )
+                .replaceAll(
+                    "\n",
+                    "\\n"
+                )
+                .replaceAll(
+                    "\r",
+                    "\\r"
+                );
+
+        }
+
+
+        let youtubeConfig =
+            null;
+
+
+        let youtubeEpisode =
+            null;
+
+
+        let youtubeMetadata =
+            null;
+
+
+        function getYoutubeFieldValue(
+            id
+        ) {
+
+            const element =
+                document.getElementById(
+                    id
+                );
+
+
+            return (
+                element
+                    ? element.value
+                    : ""
+            );
+
+        }
+
+
+        function setYoutubeFieldValue(
+            id,
+            value
+        ) {
+
+            const element =
+                document.getElementById(
+                    id
+                );
+
+
+            if (element) {
+
+                element.value =
+                    value || "";
+
+            }
+
+        }
+
+
+        function resizeYoutubeDescription() {
+
+            const textarea =
+                document.getElementById(
+                    "youtubeDescription"
+                );
+
+            if (!textarea) {
+
+                return;
+
+            }
+
+            textarea.style.height =
+                "auto";
+
+            textarea.style.height =
+                `${textarea.scrollHeight}px`;
+
+        }
+
+
+        async function openYoutubeUploadModal(
+            episodeId
+        ) {
+
+            try {
+
+                const data =
+                    await api(
+                        "/api/youtube/form?episode_id=" +
+                        encodeURIComponent(
+                            episodeId
+                        )
+                    );
+
+
+                youtubeConfig =
+                    data.config ||
+                    {};
+
+
+                youtubeEpisode =
+                    data.episode ||
+                    {
+                        id: episodeId
+                    };
+
+
+                youtubeMetadata =
+                    data.metadata ||
+                    {};
+
+
+                document.getElementById(
+                    "youtubeModalEpisode"
+                ).textContent =
+                    episodeId;
+
+                document.getElementById(
+                    "youtubeModalResult"
+                ).hidden =
+                    true;
+
+
+                const youtubeDoneCheckbox =
+                    document.getElementById(
+                        "youtubeMarkedDone"
+                    );
+
+                if (youtubeDoneCheckbox) {
+
+                    youtubeDoneCheckbox.checked =
+                        Boolean(
+                            youtubeEpisode.uploaded &&
+                            youtubeEpisode.uploaded.youtube
+                        );
+
+                }
+
+
+                populateYoutubeAccountFields();
+                populateYoutubeMetadataFields();
+
+
+                document.getElementById(
+                    "youtubeModal"
+                ).hidden =
+                    false;
+
+                requestAnimationFrame(
+                    () => {
+
+                        resizeYoutubeDescription();
+
+                        requestAnimationFrame(
+                            resizeYoutubeDescription
+                        );
+
+                    }
+                );
+
+            } catch (error) {
+
+                showError(
+                    error.message
+                );
+
+            }
+
+        }
+
+
+        function closeYoutubeUploadModal() {
+
+            document.getElementById(
+                "youtubeModal"
+            ).hidden =
+                true;
+
+        }
+
+
+        document.addEventListener(
+            "input",
+            event => {
+
+                if (
+                    event.target &&
+                    event.target.id ===
+                    "youtubeDescription"
+                ) {
+
+                    resizeYoutubeDescription();
+
+                }
+
+            }
+        );
+
+
+        function populateYoutubeAccountFields() {
+
+            const account =
+                youtubeConfig.account ||
+                {};
+
+            setYoutubeFieldValue(
+                "youtubeChannelName",
+                account.channel_name
+            );
+
+            setYoutubeFieldValue(
+                "youtubeClientId",
+                account.client_id
+            );
+
+            setYoutubeFieldValue(
+                "youtubeClientSecret",
+                account.client_secret
+            );
+
+            setYoutubeFieldValue(
+                "youtubeRefreshToken",
+                account.refresh_token
+            );
+
+        }
+
+
+        function populateYoutubeMetadataFields() {
+
+            const metadata =
+                youtubeMetadata ||
+                {};
+
+
+            setYoutubeFieldValue(
+                "youtubeTitle",
+                metadata.title
+            );
+
+            setYoutubeFieldValue(
+                "youtubeDescription",
+                metadata.description
+            );
+
+            setYoutubeFieldValue(
+                "youtubeTags",
+                Array.isArray(metadata.tags)
+                    ? metadata.tags.join(", ")
+                    : (
+                        metadata.tags ||
+                        ""
+                    )
+            );
+
+            setYoutubeFieldValue(
+                "youtubeCategoryId",
+                metadata.category_id
+            );
+
+            setYoutubeFieldValue(
+                "youtubePrivacyStatus",
+                metadata.privacy_status
+            );
+
+            setYoutubeFieldValue(
+                "youtubeMadeForKids",
+                metadata.made_for_kids
+                    ? "true"
+                    : "false"
+            );
+
+        }
+
+
+        function collectYoutubeCredentials() {
+
+            return {
+                channel_name:
+                    getYoutubeFieldValue(
+                        "youtubeChannelName"
+                    ),
+
+                client_id:
+                    getYoutubeFieldValue(
+                        "youtubeClientId"
+                    ),
+
+                client_secret:
+                    getYoutubeFieldValue(
+                        "youtubeClientSecret"
+                    ),
+
+                refresh_token:
+                    getYoutubeFieldValue(
+                        "youtubeRefreshToken"
+                    )
+            };
+
+        }
+
+
+        function collectYoutubeMetadata() {
+
+            return {
+                title:
+                    getYoutubeFieldValue(
+                        "youtubeTitle"
+                    ),
+
+                description:
+                    getYoutubeFieldValue(
+                        "youtubeDescription"
+                    ),
+
+                tags:
+                    getYoutubeFieldValue(
+                        "youtubeTags"
+                    ),
+
+                category_id:
+                    getYoutubeFieldValue(
+                        "youtubeCategoryId"
+                    ),
+
+                privacy_status:
+                    getYoutubeFieldValue(
+                        "youtubePrivacyStatus"
+                    ),
+
+                made_for_kids:
+                    getYoutubeFieldValue(
+                        "youtubeMadeForKids"
+                    ) === "true"
+            };
+
+        }
+
+
+        /* ==================================================
+             UPLOAD STATUS TRACKING
+        ================================================== */
+
+        function findEpisodeById(
+            episodeId
+        ) {
+
+            const normalized =
+                String(episodeId || "")
+                    .replace(/\\/g, "/")
+                    .replace(/\/+$/, "")
+                    .toLowerCase();
+
+            return latestEpisodes.find(
+                episode =>
+                    String(episode.id || episode.path || "")
+                        .replace(/\\/g, "/")
+                        .replace(/\/+$/, "")
+                        .toLowerCase() === normalized
+            );
+
+        }
+
+
+        function applyUploadStateLocally(
+            episodeId,
+            platform,
+            done
+        ) {
+
+            const episode =
+                findEpisodeById(episodeId);
+
+            if (!episode) {
+
+                return;
+
+            }
+
+            if (!episode.uploaded) {
+
+                episode.uploaded = {};
+
+            }
+
+            episode.uploaded[platform] =
+                Boolean(done);
+
+            renderEpisodeGrid();
+
+        }
+
+
+        async function setUploadDone(
+            platform,
+            episodeId,
+            done
+        ) {
+
+            await api(
+                "/api/upload-status",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify(
+                        {
+                            episode_id: episodeId,
+
+                            platform: platform,
+
+                            done: Boolean(done)
+                        }
+                    )
+                }
+            );
+
+            applyUploadStateLocally(
+                episodeId,
+                platform,
+                done
+            );
+
+        }
+
+
+        async function toggleUploadDone(
+            platform,
+            checkbox
+        ) {
+
+            const episode =
+                platform === "youtube"
+                    ? youtubeEpisode
+                    : instagramEpisode;
+
+            if (
+                !episode ||
+                !episode.id
+            ) {
+
+                checkbox.checked = false;
+
+                return;
+
+            }
+
+            try {
+
+                await setUploadDone(
+                    platform,
+                    episode.id,
+                    checkbox.checked
+                );
+
+            } catch (error) {
+
+                showError(
+                    error.message
+                );
+
+                checkbox.checked =
+                    !checkbox.checked;
+
+            }
+
+        }
+
+
+        async function submitYoutubeUpload() {
+
+            if (
+                !youtubeEpisode ||
+                !youtubeEpisode.id
+            ) {
+
+                return;
+
+            }
+
+
+            const button =
+                document.getElementById(
+                    "youtubeSubmitButton"
+                );
+
+
+            const result =
+                document.getElementById(
+                    "youtubeModalResult"
+                );
+
+
+            button.disabled =
+                true;
+
+            button.textContent =
+                "Uploading…";
+
+
+            result.hidden =
+                false;
+
+            result.className =
+                "youtube-modal-result";
+
+            result.textContent =
+                "Uploading video… This can take a little while.";
+
+
+            try {
+
+                const data =
+                    await api(
+                        "/api/youtube/upload",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify(
+                                    {
+                                        episode_id:
+                                            youtubeEpisode.id,
+
+                                        account:
+                                            collectYoutubeCredentials(),
+
+                                        metadata:
+                                            collectYoutubeMetadata()
+                                    }
+                                )
+                        }
+                    );
+
+
+                result.className =
+                    "youtube-modal-result success";
+
+                result.innerHTML =
+                    "✅ Uploaded: " +
+                    '<a href="' +
+                    escapeHtml(
+                        data.video_url ||
+                        "#"
+                    ) +
+                    '" target="_blank" rel="noopener">' +
+                    escapeHtml(
+                        data.title ||
+                        "video"
+                    ) +
+                    "</a>" +
+                    (
+                        data.video_id
+                            ? " (ID: " +
+                            escapeHtml(
+                                data.video_id
+                            ) +
+                            ")"
+                            : ""
+                    );
+
+                try {
+
+                    await setUploadDone(
+                        "youtube",
+                        youtubeEpisode.id,
+                        true
+                    );
+
+                    const youtubeDoneCheckbox =
+                        document.getElementById(
+                            "youtubeMarkedDone"
+                        );
+
+                    if (youtubeDoneCheckbox) {
+
+                        youtubeDoneCheckbox.checked =
+                            true;
+
+                    }
+
+                } catch (markError) {
+
+                    console.warn(
+                        "Could not persist upload status:",
+                        markError
+                    );
+
+                }
+
+            } catch (error) {
+
+                result.className =
+                    "youtube-modal-result error";
+
+                result.textContent =
+                    "Upload failed: " +
+                    error.message;
+
+            } finally {
+
+                button.disabled =
+                    false;
+
+                button.textContent =
+                    "Upload Short";
+
+            }
+
+        }
+
+
+        /* ==================================================
+             INSTAGRAM UPLOAD
+        ================================================== */
+
+        let instagramConfig =
+            {};
+
+        let instagramEpisode =
+            null;
+
+
+        function setInstagramFieldValue(
+            id,
+            value
+        ) {
+
+            const field =
+                document.getElementById(id);
+
+            if (field) {
+
+                field.value =
+                    value || "";
+
+            }
+
+        }
+
+
+        async function openInstagramUploadModal(
+            episodeId
+        ) {
+
+            try {
+
+                const data =
+                    await api(
+                        "/api/instagram/form?episode_id=" +
+                        encodeURIComponent(
+                            episodeId
+                        )
+                    );
+
+
+                instagramConfig =
+                    data.config ||
+                    {};
+
+
+                instagramEpisode =
+                    data.episode ||
+                    {
+                        id: episodeId
+                    };
+
+
+                document.getElementById(
+                    "instagramModalEpisode"
+                ).textContent =
+                    episodeId;
+
+                document.getElementById(
+                    "instagramModalResult"
+                ).hidden =
+                    true;
+
+
+                const instagramDoneCheckbox =
+                    document.getElementById(
+                        "instagramMarkedDone"
+                    );
+
+                if (instagramDoneCheckbox) {
+
+                    instagramDoneCheckbox.checked =
+                        Boolean(
+                            instagramEpisode.uploaded &&
+                            instagramEpisode.uploaded.instagram
+                        );
+
+                }
+
+
+                const account =
+                    instagramConfig.account ||
+                    {};
+
+                setInstagramFieldValue(
+                    "instagramAccessToken",
+                    account.access_token
+                );
+
+                setInstagramFieldValue(
+                    "instagramUserId",
+                    account.user_id
+                );
+
+                setInstagramFieldValue(
+                    "instagramCaption",
+                    data.caption
+                );
+
+
+                document.getElementById(
+                    "instagramModal"
+                ).hidden =
+                    false;
+
+            } catch (error) {
+
+                showError(
+                    error.message
+                );
+
+            }
+
+        }
+
+
+        function closeInstagramUploadModal() {
+
+            document.getElementById(
+                "instagramModal"
+            ).hidden =
+                true;
+
+        }
+
+
+        async function submitInstagramPublish() {
+
+            if (
+                !instagramEpisode ||
+                !instagramEpisode.id
+            ) {
+
+                return;
+
+            }
+
+
+            const button =
+                document.getElementById(
+                    "instagramSubmitButton"
+                );
+
+
+            const result =
+                document.getElementById(
+                    "instagramModalResult"
+                );
+
+
+            button.disabled =
+                true;
+
+            button.textContent =
+                "Publishing…";
+
+
+            result.hidden =
+                false;
+
+            result.className =
+                "youtube-modal-result";
+
+            result.textContent =
+                "Uploading to Instagram… Processing can take a few minutes.";
+
+
+            try {
+
+                const data =
+                    await api(
+                        "/api/instagram/publish",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify(
+                                    {
+                                        episode_id:
+                                            instagramEpisode.id,
+
+                                        account: {
+                                            access_token:
+                                                document.getElementById("instagramAccessToken").value.trim(),
+
+                                            ig_user_id:
+                                                document.getElementById("instagramUserId").value.trim()
+                                        },
+
+                                        caption:
+                                            document.getElementById("instagramCaption").value.trim()
+                                    }
+                                )
+                        }
+                    );
+
+
+                result.className =
+                    "youtube-modal-result success";
+
+                result.innerHTML =
+                    "✅ Published: " +
+                    '<a href="' +
+                    escapeHtml(
+                        data.permalink ||
+                        "#"
+                    ) +
+                    '" target="_blank" rel="noopener">' +
+                    "View on Instagram" +
+                    "</a>";
+
+                try {
+
+                    await setUploadDone(
+                        "instagram",
+                        instagramEpisode.id,
+                        true
+                    );
+
+                    const instagramDoneCheckbox =
+                        document.getElementById(
+                            "instagramMarkedDone"
+                        );
+
+                    if (instagramDoneCheckbox) {
+
+                        instagramDoneCheckbox.checked =
+                            true;
+
+                    }
+
+                } catch (markError) {
+
+                    console.warn(
+                        "Could not persist upload status:",
+                        markError
+                    );
+
+                }
+
+            } catch (error) {
+
+                result.className =
+                    "youtube-modal-result error";
+
+                result.textContent =
+                    "Publish failed: " +
+                    error.message;
+
+            } finally {
+
+                button.disabled =
+                    false;
+
+                button.textContent =
+                    "Publish Reel";
+
+            }
+
+        }
+
+
+        async function initializePage() {
+
+            await restoreStatus();
+
+            await loadEpisodes();
+
+        }
+
+
+        initializePage();
+
+    </script>
+
+</body>
+
+</html>

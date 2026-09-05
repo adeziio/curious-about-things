@@ -1,0 +1,31 @@
+{
+    "api": {
+        "upload_url": "https://www.googleapis.com/upload/youtube/v3/videos",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "scope": [
+            "https://www.googleapis.com/auth/youtube.upload",
+            "https://www.googleapis.com/auth/youtube.readonly"
+        ],
+        "chunk_size_bytes": 10485760,
+        "timeout_seconds": 300
+    },
+    "metadata": {
+        "defaults": {
+            "title_suffix": "",
+            "category_id": "24",
+            "privacy_status": "public",
+            "made_for_kids": false,
+            "tags": [
+                "#curiosity",
+                "#didyouknow",
+                "#mindblowingfacts",
+                "#sciencefacts",
+                "#amazingfacts"
+            ],
+            "description_extra_lines": []
+        }
+    },
+    "account": {
+        "channel_name": "Curious About Things"
+    }
+}
