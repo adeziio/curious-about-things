@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 import numpy as np
 
@@ -627,7 +627,7 @@ class Composer:
 
             clip = TextClip(
                 font=font,
-                text=wrapped_text,
+                text=wrapped_text + "\n",
                 font_size=current_font_size,
                 color=text_color,
                 stroke_color=stroke_color,
@@ -673,7 +673,7 @@ class Composer:
         # Very defensive fallback - the smallest safe size.
         return TextClip(
             font=font,
-            text=wrapped_text,
+            text=wrapped_text + "\n",
             font_size=current_font_size,
             color=text_color,
             stroke_color=stroke_color,

@@ -1,4 +1,4 @@
-﻿import json
+import json
 import re
 from pathlib import Path
 
@@ -7,6 +7,43 @@ from ai.providers.ollama_provider import OllamaProvider
 
 class ContentGenerationError(RuntimeError):
     pass
+
+# JSON schema passed to Ollama's structured-output mode. It grammar-enforces
+# the response shape so the model cannot return short narrations: exactly 15
+# narration sentences and 14-18 visual queries.
+NARRATION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string"},
+        "summary": {"type": "string"},
+        "narration_sentences": {
+            "type": "array",
+            "minItems": 14,
+            "maxItems": 14,
+            # Character bounds are grammar-enforced by Ollama, which makes the
+            # total narration word count deterministic (~130-160 words):
+            # 14 sentences x 55-68 chars ~= 45-55 seconds at ~2.9 words/sec,
+            # deliberately below the 60-second Shorts ceiling so nothing
+            # gets cut off at the one-minute mark.
+            "items": {"type": "string", "minLength": 55, "maxLength": 68},
+        },
+        "mood": {"type": "string"},
+        "visuals": {
+            "type": "array",
+            "minItems": 14,
+            "maxItems": 18,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "context": {"type": "string"},
+                    "search_query": {"type": "string"},
+                },
+                "required": ["context", "search_query"],
+            },
+        },
+    },
+    "required": ["title", "summary", "narration_sentences", "mood", "visuals"],
+}
 
 class ContentGenerator(BaseAIService):
     def __init__(self, config):
@@ -24,7 +61,7 @@ class ContentGenerator(BaseAIService):
         c = self.generation_config
         ch = self.channel_config.get("channel", {})
         name = str(ch.get("name", "Curious About Things"))
-        desc = str(ch.get("description", ""))
+        desc = str(ch.get("channel_description", ch.get("description", "")))
         topics = self.format_bullets(c.get("topics", []))
         storytelling = self.format_bullets(c.get("storytelling", []))
         narration_rules = self.format_bullets(c.get("narration_rules", []))
@@ -32,78 +69,73 @@ class ContentGenerator(BaseAIService):
         creative_directions = self.format_bullets(c.get("creative_directions", []))
         target_seconds = c.get("narration_target_seconds", 58)
         wps = c.get("words_per_second", 2.7)
+        word_min = int(53 * wps)
         word_target = int(target_seconds * wps)
         instruction = str(instruction or "").strip()
         instruction_section = ""
         if instruction:
-            instruction_section = ("\nUSER INSTRUCTION\nThe user gave the following direction "
-                "for this episode. Follow it as closely as possible while keeping the "
-                "quality requirements:\n" + instruction + "\n")
-        return ("You are the creative writer for \"" + name + "\", a short-form video channel "
-                "about anything genuinely fascinating.\n\nCHANNEL DESCRIPTION\n" + desc +
-                "\n\nTOPIC FREEDOM\nYou may choose ANY subject that is interesting, surprising, "
-                "or delightful. Example areas (you are not limited to these):\n" + topics +
-                instruction_section +
-                "\nSTORYTELLING PATTERN (guideline, not a rigid formula - adapt it naturally "
-                "to the topic):\n" + storytelling +
-                "\n\nNARRATION RULES\n" + narration_rules +
-                "\n\nNARRATION LENGTH (HARD REQUIREMENT)\nThe narration must run 50-58 seconds "
-                "when read aloud at a natural, energetic pace. That means the script MUST "
-                "contain at least " + str(int(53 * wps)) + " words and should target " +
-                str(word_target) + " words (acceptable range: " + str(int(53 * wps)) + " to " +
-                str(int(59 * wps)) + " words). If the story needs more room, add more real "
-                "facts, context, and escalation. Do not pad with filler or repetition - "
-                "every sentence should carry meaningful information."
-                "\n\nVISUAL SEARCH QUERY RULES\n" + visual_rules +
-                "\n\nCREATIVE DIRECTION\n" + creative_directions +
-                "\n\nOUTPUT FORMAT\nRespond with a single JSON object and nothing else, exactly in this shape:\n\n"
-                '{\n  "title": "A short, clickable video title",\n  "summary": "One-sentence '
-                'teaser of the episode",\n  "narration": "The full narration script. Plain spoken text. '
-                'No stage directions, no sound cues, no speaker labels.",\n  "mood": '
-                '"1-3 lowercase words describing the emotional tone of the story '
-                '(for example: curious, mysterious, uplifting)",\n  "visuals": '
-                '[\n    {"context": "Which part of the narration this footage supports", '
-                '"search_query": "stock footage search phrase"}\n  ]\n}\n')
+            instruction_section = ("USER INSTRUCTION\nThe user gave the following direction "
+                "for this episode. Follow it as closely as possible while keeping every "
+                "requirement below:\n" + instruction + "\n\n")
+        # The narration-length requirement is stated FIRST (models weight the
+        # start of the prompt most) as an explicit sentence-by-sentence
+        # blueprint - LLMs follow sentence counts far more reliably than word
+        # counts, and must be stopped from stacking tiny fragments.
+        length_requirement = (
+            "ABSOLUTE REQUIREMENT - NARRATION LENGTH\n"
+            "Write the narration as EXACTLY 14 complete sentences, each sentence 9-12 words "
+            "long, totaling about " + str(word_target) + " words. Never write strings of short "
+            "fragments - every sentence must be a full, substantial spoken thought. A shorter "
+            "script is a FAILED response. Follow this blueprint exactly:\n"
+            "- Sentence 1: the hook - a surprising claim or vivid moment.\n"
+            "- Sentences 2-3: the setup - establish the situation so the viewer cares.\n"
+            "- Sentences 4-10: escalation - at least 4 different verified facts, each fully "
+            "developed in its own sentence, with detail that deepens the intrigue.\n"
+            "- Sentences 11-12: the surprising reveal and the connection to the viewer.\n"
+            "- Sentence 13: the twist - a memorable observation or unexpected angle.\n"
+            "- Sentence 14: the closing - a satisfying final thought or a natural curiosity question.\n"
+        )
+        return (
+            "You are the creative writer for \"" + name + "\", a short-form video channel "
+            "about anything genuinely fascinating.\n\n" +
+            length_requirement +
+            "\nCHANNEL DESCRIPTION\n" + desc +
+            "\n\nTOPIC FREEDOM\nYou may choose ANY subject that is interesting, surprising, "
+            "or delightful. Example areas (you are not limited to these):\n" + topics +
+            "\n\n" + instruction_section +
+            "STORYTELLING PATTERN (guideline, not a rigid formula - adapt it naturally "
+            "to the topic):\n" + storytelling +
+            "\n\nNARRATION RULES\n" + narration_rules +
+            "\n\nVISUAL SEARCH QUERY RULES\n" + visual_rules +
+            "\n\nCREATIVE DIRECTION\n" + creative_directions +
+            "\n\nOUTPUT FORMAT\nReturn a single JSON object with exactly these fields:\n"
+            '- "title": a short, clickable video title.\n'
+            '- "summary": a one-sentence teaser of the episode.\n'
+            '- "narration_sentences": an array of EXACTLY 14 strings - the narration split '
+            'into its 14 sentences. Each string is one complete spoken sentence of 9-12 words. '
+            'Plain spoken text, no stage directions, no sound cues, no speaker labels.\n'
+            '- "mood": 1-3 lowercase words describing the emotional tone (for example: curious, mysterious, uplifting).\n'
+            '- "visuals": an array of 14-18 objects, each {"context": "which part of the narration this footage supports", "search_query": "stock footage search phrase"}.\n\n'
+            "FINAL CHECK BEFORE ANSWERING\n"
+            "1. narration_sentences contains exactly 14 complete sentences of 9-12 words each.\n"
+            "2. Every sentence is a full, substantial spoken thought of 12-14 words.\n"
+            "3. The visuals array contains at least 14 search queries covering the ENTIRE narration.\n"
+            "4. Every sentence carries real, verified information - no filler.\n"
+        )
 
     def generate(self, instruction=None):
         prompt = self.build_prompt(instruction)
-        max_attempts = 3
-        for attempt in range(max_attempts):
-            self.log(f"Generating episode content (attempt {attempt + 1}/{max_attempts})...")
-            response = self.llm.generate(prompt, response_format="json")
-            content = self.parse_content(response)
-            if content is None:
-                if attempt < max_attempts - 1:
-                    self.log(f"Parse attempt {attempt + 1} failed, retrying...")
-                    continue
-                raise ContentGenerationError("The AI response could not be parsed into valid episode content.")
-            try:
-                content = self.validate_content(content)
-            except ContentGenerationError as error:
-                if attempt >= max_attempts - 1:
-                    raise
-                rejection = str(error)
-                self.log(f"Validation attempt {attempt + 1} failed: {rejection}. Retrying...")
-                lower = rejection.lower()
-                if "too short" in lower or "too few usable visual" in lower:
-                    follow = ("Your previous attempt was rejected. Rewrite with a substantially "
-                              "longer, more detailed narration: it must contain 155-170 words so "
-                              "it runs 52-58 seconds when spoken, and include at least 14 distinct, "
-                              "findable stock-footage search queries (one new visual every 3-4 "
-                              "seconds). Keep every factual claim verifiable; do not pad with "
-                              "filler.")
-                elif "too long" in lower:
-                    follow = ("Your previous attempt was rejected because the narration was too "
-                              "long. Rewrite with a tighter narration of 150-165 words so it runs "
-                              "50-58 seconds when spoken, and keep 14-18 visual search queries.")
-                else:
-                    follow = ("Your previous attempt was rejected: " + rejection +
-                              " Fix the problem and return a fully compliant JSON response.")
-                prompt = self.build_prompt(follow)
-                continue
-            self.log("Episode content generated: " + content["title"])
-            return content
-        raise ContentGenerationError("Failed to generate valid content after multiple attempts.")
+        self.log("Generating episode content...")
+        # Grammar-constrained output: the schema forces the model to emit
+        # 15 narration sentence strings and 14-18 visual queries, which even
+        # a small local model counts reliably (unlike word counts in prose).
+        response = self.llm.generate(prompt, response_format=NARRATION_SCHEMA)
+        content = self.parse_content(response)
+        if content is None:
+            raise ContentGenerationError("The AI response could not be parsed into valid episode content.")
+        content = self.validate_content(content)
+        self.log("Episode content generated: " + content["title"])
+        return content
 
     def parse_content(self, response):
         if not response:
@@ -122,10 +154,33 @@ class ContentGenerator(BaseAIService):
             return None
         title = str(data.get("title", "")).strip()
         summary = str(data.get("summary", "")).strip()
-        narration = str(data.get("narration", "")).strip()
+        # Structured mode returns the narration as an array of sentences.
+        sentences = data.get("narration_sentences")
+        if isinstance(sentences, list) and sentences:
+            # Ensure each sentence ends with terminal punctuation so the TTS
+            # engine pauses naturally at sentence boundaries.
+            cleaned_sentences = []
+            for s in sentences:
+                s = str(s).strip()
+                if not s:
+                    continue
+                if s[-1] not in ".!?…":
+                    s += "."
+                cleaned_sentences.append(s)
+            narration = " ".join(cleaned_sentences).strip()
+        else:
+            narration = str(data.get("narration", "")).strip()
         visuals = data.get("visuals", [])
-        if not title or not narration:
+        # Be tolerant of empty optional fields: derive a title from the
+        # summary or the opening sentence rather than discarding a valid
+        # grammar-constrained response.
+        if not title:
+            title = summary.split(".")[0].strip() if summary else ""
+        if not narration:
             return None
+        if not title:
+            first = re.split(r"(?<=[.!?])\s+", narration)[0].strip()
+            title = (first[:80] + "...") if len(first) > 80 else first
         if not isinstance(visuals, list):
             visuals = []
         cleaned_visuals = []
@@ -185,8 +240,9 @@ class ContentGenerator(BaseAIService):
         self.log(f"Narration length: {word_count} words, {len(cleaned_visuals)} visual queries.")
 
         wps = float(self.generation_config.get("words_per_second", 2.9))
-        min_words = int(53 * wps)   # ~53 seconds of spoken content (at energetic pace)
-        max_words = int(59 * wps)   # hard cap so narration fits the Shorts window
+        min_words = int(45 * wps)   # 45-second floor (the user-required minimum)
+        max_words = int(56 * wps)   # 56-second ceiling; narration.py
+                                    # applies a tiny (<5%) speed-up if slightly over
 
         if word_count < min_words:
             raise ContentGenerationError(

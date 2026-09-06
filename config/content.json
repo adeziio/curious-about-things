@@ -34,7 +34,7 @@
         "narration_rules": [
             "This structure is a guideline, not a rigid formula - adapt it naturally to the topic.",
             "Never open with generic introductions like 'Today we're going to talk about...' or 'Let me tell you about...'.",
-            "Use short, punchy sentences with natural pauses.",
+            "Write substantial, flowing sentences of 9-12 words each, delivered with energy and natural emphasis - never stack tiny fragments or choppy 3-6 word sentences.",
             "Escalate the story rather than presenting disconnected facts.",
             "Use humor or clever phrasing when appropriate.",
             "Never end with generic lines like 'And that's why...' or 'Pretty amazing, right?' unless they genuinely fit.",
@@ -44,13 +44,13 @@
             "Do not make the narration overly dramatic, cheesy, robotic, or like a commercial.",
             "NARRATION PACING: Flow at a natural speaking pace. Do not slow down, stretch, artificially pause, or alter delivery just to reach the target duration. Content comes first - duration should naturally follow from the amount of meaningful information being presented."
         ],
-        "narration_target_seconds": 58,
+        "narration_target_seconds": 52,
         "words_per_second": 2.9,
         "visual_rules": [
-            "Generate enough visual search queries to give the viewer a new visual every 3-4 seconds (for a 58-second video, that means 14-19 queries; for a 40-second video, 10-13 queries).",
+            "Generate AT LEAST 14 visual search queries (14-18 total) - enough for a new visual every 3-4 seconds across the full 52-second narration. Count them before answering.",
             "Each query describes what should APPEAR in the footage - concrete subjects, objects, places, or actions.",
             "Queries are plain search phrases, for example: 'person scrolling phone in bed', 'phone blue light at night', 'tired person working'.",
-            "Each query should cover roughly 3-4 seconds of narration - visual changes should follow the story, not split it into equal chunks.",
+            "Spread the queries across the ENTIRE narration from beginning to end - every part of the story needs footage.",
             "Do NOT include camera movements, cinematic shot descriptions, animation instructions, lighting specifications, or character descriptions.",
             "Queries must be findable on a stock footage site - prefer common, well-shot subjects."
         ],
