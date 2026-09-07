@@ -10,6 +10,7 @@ from urllib.parse import (
 )
 import json
 import multiprocessing
+import shutil
 import threading
 import traceback
 
@@ -2279,24 +2280,25 @@ class RequestHandler(
                     )
                 )
 
-                # Only reset the episode back to the "prompt missing"
-                # state. No other files (videos, upload status, etc.)
-                # and no episode directories are deleted.
+                # Delete everything inside the episode folder
+                # (videos, content, upload status, etc.). The
+                # folder itself is kept so it still resolves as
+                # an existing (but now empty) episode.
 
-                for filename in (
-                    "prompt.txt",
-                    "episode.mp4"
-                ):
+                for entry in episode_directory.iterdir():
 
-                    file_path = (
-                        episode_directory
-                        /
-                        filename
-                    )
+                    if (
+                        entry.is_dir()
+                        and not entry.is_symlink()
+                    ):
 
-                    if file_path.is_file():
+                        shutil.rmtree(
+                            entry
+                        )
 
-                        file_path.unlink()
+                    else:
+
+                        entry.unlink()
 
             except Exception as error:
 
@@ -2312,8 +2314,8 @@ class RequestHandler(
                 return
 
             print(
-                f"[EPISODE] Reset {episode_id}: "
-                "removed prompt.txt/episode.mp4."
+                f"[EPISODE] Deleted {episode_id}: "
+                "removed all episode contents."
             )
 
             self.send_json(

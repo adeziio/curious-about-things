@@ -161,9 +161,7 @@ class CuriousPipeline:
         episode_directory = (
             output_root
             /
-            str(
-                next_number
-            )
+            f"{next_number:03d}"
         )
 
         episode_directory.mkdir(

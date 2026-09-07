@@ -4569,8 +4569,7 @@
             <div class="delete-confirm-body">
 
                 <p>
-                    This will permanently delete this episode's
-                    <strong>prompt.txt</strong> and <strong>episode.txt</strong>.
+                    This will permanently delete everything from this episode.
                     The episode will return to the Generate Prompt state.
                 </p>
 
@@ -6657,7 +6656,12 @@
 
             const number =
                 escapeHtml(
-                    episode.number
+                    String(
+                        episode.number
+                    ).padStart(
+                        3,
+                        "0"
+                    )
                 );
 
 
@@ -7014,6 +7018,9 @@
             const nextNumber =
                 String(
                     Math.max(...numbers) + 1
+                ).padStart(
+                    3,
+                    "0"
                 );
 
 
