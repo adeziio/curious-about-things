@@ -1387,6 +1387,63 @@
         }
 
 
+        .heading-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+
+        .next-upload {
+            height: 28px;
+            padding: 0 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            border: 1px solid rgba(164, 255, 99, 0.22);
+            border-radius: 999px;
+            background: rgba(164, 255, 99, 0.06);
+            color: var(--accent-bright);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+
+
+        .next-upload-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #02f90273;
+            box-shadow: 0 0 6px var(--accent);
+            animation: next-upload-pulse 2s ease-in-out infinite;
+        }
+
+
+        .next-upload strong {
+            color: black;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+        }
+
+
+        @keyframes next-upload-pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.4;
+                transform: scale(0.8);
+            }
+        }
+
+
         /* ==================================================
            GENERATION PROGRESS
         ================================================== */
@@ -4003,8 +4060,14 @@
                     </h2>
 
 
-                    <div id="episodeCount" class="episode-count">
-                        0
+                    <div class="heading-meta">
+                        <div id="episodeCount" class="episode-count">
+                            0
+                        </div>
+                        <div class="next-upload" id="nextUpload" style="display:none;">
+                            <span class="next-upload-dot"></span>
+                            Next Upload: <strong id="nextUploadNumber">---</strong>
+                        </div>
                     </div>
 
                 </div>
@@ -6502,6 +6565,100 @@
         }
 
 
+        function updateNextUpload(
+            episodes
+        ) {
+
+            const nextUploadEl =
+                document.getElementById(
+                    "nextUpload"
+                );
+
+            const nextUploadNumberEl =
+                document.getElementById(
+                    "nextUploadNumber"
+                );
+
+            if (
+                !nextUploadEl ||
+                !nextUploadNumberEl
+            ) {
+
+                return;
+
+            }
+
+            const pendingEpisodes = (
+                [...episodes]
+                    .sort(
+                        (
+                            a,
+                            b
+                        ) =>
+                            parseInt(
+                                a.number,
+                                10
+                            ) -
+                            parseInt(
+                                b.number,
+                                10
+                            )
+                    ));
+
+            const next = (
+                pendingEpisodes.find(
+                    episode => {
+
+                        const uploaded =
+                            episode.uploaded ||
+                            {};
+
+                        const youtubeDone =
+                            uploaded.youtube ===
+                            true;
+
+                        const instagramDone =
+                            uploaded.instagram ===
+                            true;
+
+                        return (
+                            !youtubeDone &&
+                            !instagramDone
+                        );
+
+                    }
+                )
+            );
+
+            if (
+                next
+            ) {
+
+                nextUploadNumberEl.textContent =
+                    "#" +
+                    String(
+                        next.number
+                    ).padStart(
+                        3,
+                        "0"
+                    );
+
+                nextUploadEl.style.display =
+                    "";
+
+            } else {
+
+                nextUploadNumberEl.textContent =
+                    "---";
+
+                nextUploadEl.style.display =
+                    "none";
+
+            }
+
+        }
+
+
         async function loadEpisodes() {
 
             const container =
@@ -6574,6 +6731,10 @@
                     .textContent =
                     count;
 
+
+                updateNextUpload(
+                    episodes
+                );
 
                 renderEpisodeGrid();
 
