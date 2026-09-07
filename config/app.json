@@ -15,9 +15,9 @@
     },
     "audio": {
         "narration": {
-            "voice": "en-US-AndrewNeural",
+            "voice": "en-US-GuyNeural",
             "rate": "+8%",
-            "pitch": "-2Hz",
+            "pitch": "+5Hz",
             "volume": 1.0
         },
         "music": {
