@@ -8,6 +8,7 @@ from production.narration import (
 
 from production.captions import (
     build_caption_cues,
+    build_word_cues,
     write_srt
 )
 
@@ -341,6 +342,12 @@ class ProductionPipeline:
             )
         )
 
+        word_cues = (
+            build_word_cues(
+                words
+            )
+        )
+
         captions_path = (
             write_srt(
                 cues,
@@ -365,7 +372,7 @@ class ProductionPipeline:
                 self.composer.compose(
                     episode_directory,
                     narration,
-                    cues,
+                    word_cues,
                     [str(path) for path in footage_paths],
                     segment_count=len(
                         visuals

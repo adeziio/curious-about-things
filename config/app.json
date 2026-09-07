@@ -38,6 +38,7 @@
         "text_color": "white",
         "stroke_color": "black",
         "stroke_width": 3,
-        "vertical_position": 0.62
+        "vertical_position": 0.62,
+        "bottom_margin_px": 60
     }
 }

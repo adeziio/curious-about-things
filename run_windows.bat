@@ -278,7 +278,7 @@ if "%PUBLIC_URL%"=="" (
 ) else (
 
     echo ==========================================================
-    echo   Public URL ^(browse the app here for Instagram^):
+    echo   Public URL:
     echo   %PUBLIC_URL%
     echo ==========================================================
     echo.

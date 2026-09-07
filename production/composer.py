@@ -462,265 +462,6 @@ class Composer:
 
         return clip
 
-    def _measure_text(
-        self,
-        draw,
-        text,
-        font_pil,
-        stroke_width
-    ):
-
-        left, top, right, bottom = (
-            draw.textbbox(
-                (0, 0),
-                text,
-                font=font_pil,
-                stroke_width=stroke_width
-            )
-        )
-
-        return right - left
-
-    def _layout_caption_words(
-        self,
-        words,
-        font_path,
-        font_size,
-        stroke_width,
-        max_width,
-        origin_x,
-        origin_y
-    ):
-
-        """
-        Lays caption words out into wrapped, centered lines and
-        returns each word's on-screen position together with its
-        timing: list of {word, start, end, x, y}.
-        """
-
-        if not words:
-
-            return (
-                [],
-                font_size
-            )
-
-        image = Image.new(
-            "RGB",
-            (1, 1)
-        )
-
-        draw = ImageDraw.Draw(
-            image
-        )
-
-        def make_font(
-            size
-        ):
-
-            if font_path:
-
-                return ImageFont.truetype(
-                    font_path,
-                    size
-                )
-
-            return ImageFont.load_default(
-                size
-            )
-
-        font_pil = make_font(
-            font_size
-        )
-
-        effective_size = font_size
-
-        longest_width = max(
-            (
-                self._measure_text(
-                    draw,
-                    word["word"],
-                    font_pil,
-                    stroke_width
-                )
-                for word in words
-            ),
-            default=0
-        )
-
-        while (
-            effective_size > 20
-            and longest_width > max_width
-        ):
-
-            effective_size -= 2
-
-            font_pil = make_font(
-                effective_size
-            )
-
-            longest_width = max(
-                (
-                    self._measure_text(
-                        draw,
-                        word["word"],
-                        font_pil,
-                        stroke_width
-                    )
-                    for word in words
-                ),
-                default=0
-            )
-
-        space_width = self._measure_text(
-            draw,
-            " ",
-            font_pil,
-            stroke_width
-        )
-
-        line_height = int(
-            effective_size
-            * 1.25
-        )
-
-        lines = []
-
-        current_line = []
-        current_width = 0
-
-        for word in words:
-
-            word_width = self._measure_text(
-                draw,
-                word["word"],
-                font_pil,
-                stroke_width
-            )
-
-            if not current_line:
-
-                current_line.append(
-                    {
-                        "word": word["word"],
-                        "start": float(
-                            word["start"]
-                        ),
-                        "end": float(
-                            word["end"]
-                        ),
-                        "width": word_width
-                    }
-                )
-
-                current_width = word_width
-
-            elif (
-                current_width
-                + space_width
-                + word_width
-                <= max_width
-            ):
-
-                current_line.append(
-                    {
-                        "word": word["word"],
-                        "start": float(
-                            word["start"]
-                        ),
-                        "end": float(
-                            word["end"]
-                        ),
-                        "width": word_width
-                    }
-                )
-
-                current_width += (
-                    space_width
-                    + word_width
-                )
-
-            else:
-
-                lines.append(
-                    (
-                        current_line,
-                        current_width
-                    )
-                )
-
-                current_line = [
-                    {
-                        "word": word["word"],
-                        "start": float(
-                            word["start"]
-                        ),
-                        "end": float(
-                            word["end"]
-                        ),
-                        "width": word_width
-                    }
-                ]
-
-                current_width = word_width
-
-        if current_line:
-
-            lines.append(
-                (
-                    current_line,
-                    current_width
-                )
-            )
-
-        positioned = []
-
-        for line_index, (
-            line_words,
-            line_width
-        ) in enumerate(
-            lines
-        ):
-
-            line_origin_x = (
-                origin_x
-                + (
-                    max_width
-                    - line_width
-                )
-                / 2
-            )
-
-            x = line_origin_x
-
-            y = (
-                origin_y
-                + line_index
-                * line_height
-            )
-
-            for word in line_words:
-
-                positioned.append(
-                    {
-                        "word": word["word"],
-                        "start": word["start"],
-                        "end": word["end"],
-                        "x": x,
-                        "y": y
-                    }
-                )
-
-                x += (
-                    word["width"]
-                    + space_width
-                )
-
-        return (
-            positioned,
-            effective_size
-        )
-
     def _build_caption_clips(
         self,
         cues,
@@ -774,25 +515,9 @@ class Composer:
             )
         )
 
-        highlight_color = str(
-            self.captions_config.get(
-                "highlight_color",
-                "yellow"
-            )
-        )
-
         font = (
             self._resolve_font()
         )
-
-        caption_width = int(
-            width * 0.84
-        )
-
-        origin_x = (
-            width
-            - caption_width
-        ) / 2
 
         origin_y = int(
             height
@@ -815,123 +540,43 @@ class Composer:
 
                 continue
 
-            words = cue.get(
-                "words"
-            )
-
-            if not words:
-
-                text_clip = (
-                    self._make_caption_text_clip(
-                        cue["text"],
-                        font,
-                        font_size,
-                        stroke_width,
-                        text_color,
-                        stroke_color,
-                        caption_width,
-                        width
-                    )
+            text = str(
+                cue.get(
+                    "text",
+                    ""
                 )
+            ).strip()
 
-                caption_clips.append(
-                    text_clip
-                    .with_start(
-                        cue_start
-                    )
-                    .with_duration(
-                        cue_end
-                        - cue_start
-                    )
-                    .with_position(
-                        (
-                            "center",
-                            origin_y
-                        )
-                    )
-                )
+            if not text:
 
                 continue
 
-            positioned, effective_size = (
-                self._layout_caption_words(
-                    words,
-                    font,
-                    font_size,
-                    stroke_width,
-                    caption_width,
-                    origin_x,
-                    origin_y
-                )
+            clip = TextClip(
+                font=font,
+                text=text,
+                font_size=font_size,
+                color=text_color,
+                stroke_color=stroke_color,
+                stroke_width=stroke_width,
+                method="label",
+                text_align="center"
             )
 
-            for word in positioned:
-
-                x = word["x"]
-                y = word["y"]
-
-                white_clip = TextClip(
-                    font=font,
-                    text=word["word"],
-                    font_size=effective_size,
-                    color=text_color,
-                    stroke_color=stroke_color,
-                    stroke_width=stroke_width,
-                    method="label",
-                    text_align="left"
-                )
-
-                caption_clips.append(
-                    white_clip
-                    .with_position(
-                        (x, y)
-                    )
-                    .with_start(
-                        cue_start
-                    )
-                    .with_end(
-                        cue_end
+            caption_clips.append(
+                clip
+                .with_position(
+                    (
+                        "center",
+                        origin_y
                     )
                 )
-
-                word_start = float(
-                    word["start"]
+                .with_start(
+                    cue_start
                 )
-
-                word_end = float(
-                    word["end"]
+                .with_end(
+                    cue_end
                 )
-
-                if word_end <= word_start:
-
-                    word_end = (
-                        word_start
-                        + 0.05
-                    )
-
-                yellow_clip = TextClip(
-                    font=font,
-                    text=word["word"],
-                    font_size=effective_size,
-                    color=highlight_color,
-                    stroke_color=stroke_color,
-                    stroke_width=stroke_width,
-                    method="label",
-                    text_align="left"
-                )
-
-                caption_clips.append(
-                    yellow_clip
-                    .with_position(
-                        (x, y)
-                    )
-                    .with_start(
-                        word_start
-                    )
-                    .with_end(
-                        word_end
-                    )
-                )
+            )
 
         return caption_clips
 
