@@ -17,7 +17,7 @@
         "narration": {
             "voice": "en-US-GuyNeural",
             "rate": "+8%",
-            "pitch": "+5Hz",
+            "pitch": "+1Hz",
             "volume": 1.0
         },
         "music": {
@@ -32,11 +32,12 @@
     "captions": {
         "enabled": true,
         "max_words_per_line": 3,
+        "highlight_color": "yellow",
         "font": "",
         "font_size": 54,
         "text_color": "white",
         "stroke_color": "black",
         "stroke_width": 3,
-        "vertical_position": 0.66
+        "vertical_position": 0.62
     }
 }

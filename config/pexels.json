@@ -10,6 +10,7 @@
 
     "candidates_per_query": 3,
     "min_candidates_per_query": 1,
+    "orientation": "vertical",
 
     "page_timeout_seconds": 60,
     "download_timeout_seconds": 300,

@@ -288,6 +288,10 @@ class PexelsVideoProvider(
         points at a direct videos.pexels.com MP4. Collect unique
         MP4 URLs from the page source and prefer vertical clips,
         which fit the 9:16 Shorts format best.
+
+        When orientation is set to "vertical", only vertical clips
+        are returned so landscape footage is never stretched to fit
+        the 9:16 format.
         """
 
         urls = []
@@ -345,6 +349,17 @@ class PexelsVideoProvider(
                 landscape.append(
                     url
                 )
+
+        orientation = str(
+            self._setting(
+                "orientation",
+                "any"
+            )
+        ).strip().lower()
+
+        if orientation == "vertical":
+
+            return vertical[:limit]
 
         ordered = vertical + landscape
 

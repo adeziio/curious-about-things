@@ -146,7 +146,7 @@ def _make_cue(
     text = " ".join(
         word["word"]
         for word in words
-    )
+    ).upper()
 
     return {
         "start": round(
@@ -157,7 +157,24 @@ def _make_cue(
             words[-1]["end"],
             3
         ),
-        "text": text
+        "text": text,
+        "words": [
+            {
+                "word": str(
+                    word.get("word", "")
+                ).strip().upper(),
+                "start": float(
+                    word["start"]
+                ),
+                "end": float(
+                    word["end"]
+                )
+            }
+            for word in words
+            if str(
+                word.get("word", "")
+            ).strip()
+        ]
     }
 
 
