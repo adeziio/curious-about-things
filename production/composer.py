@@ -2,6 +2,8 @@ from pathlib import Path
 
 import numpy as np
 
+import numpy as np
+
 from PIL import (
     Image,
     ImageDraw,
@@ -12,6 +14,7 @@ from moviepy import (
     VideoFileClip,
     AudioFileClip,
     TextClip,
+    ImageClip,
     CompositeVideoClip,
     CompositeAudioClip,
     AudioClip,
@@ -504,25 +507,35 @@ class Composer:
         stroke_width = int(
             self.captions_config.get(
                 "stroke_width",
-                3
+                2
             )
         )
 
         vertical_position = float(
             self.captions_config.get(
                 "vertical_position",
-                0.74
+                0.75
             )
         )
 
-        font = (
+        font_path = (
             self._resolve_font()
         )
 
+        # Calculate Y position for captions
         origin_y = int(
             height
             * vertical_position
         )
+
+        # Load font using PIL
+        try:
+            if font_path:
+                font_pil = ImageFont.truetype(font_path, font_size)
+            else:
+                font_pil = ImageFont.load_default()
+        except Exception:
+            font_pil = ImageFont.load_default()
 
         caption_clips = []
 
@@ -551,16 +564,51 @@ class Composer:
 
                 continue
 
-            clip = TextClip(
-                font=font,
-                text=text,
-                font_size=font_size,
-                color=text_color,
-                stroke_color=stroke_color,
-                stroke_width=stroke_width,
-                method="label",
-                text_align="center"
+            # Calculate text size with padding for stroke and descenders
+            temp_img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+            temp_draw = ImageDraw.Draw(temp_img)
+            
+            # Get text bounding box
+            bbox = temp_draw.textbbox((0, 0), text, font=font_pil)
+            text_w = bbox[2] - bbox[0]
+            text_h = bbox[3] - bbox[1]
+            
+            # Add padding for stroke width and extra space for descenders
+            padding = stroke_width + 10
+            img_w = text_w + 2 * padding + 4
+            img_h = text_h + 2 * padding + 4
+
+            # Create transparent image for the caption
+            img = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(img)
+
+            # Position text with offset to account for bbox origin
+            x = padding - bbox[0]
+            y = padding - bbox[1]
+
+            # Draw stroke by drawing text at offsets
+            if stroke_width > 0:
+                for dx in range(-stroke_width, stroke_width + 1):
+                    for dy in range(-stroke_width, stroke_width + 1):
+                        if dx != 0 or dy != 0:
+                            draw.text(
+                                (x + dx, y + dy),
+                                text,
+                                font=font_pil,
+                                fill=(0, 0, 0, 255)
+                            )
+
+            # Draw main text
+            draw.text(
+                (x, y),
+                text,
+                font=font_pil,
+                fill=(255, 255, 255, 255)
             )
+
+            # Convert to numpy array and create ImageClip
+            img_array = np.array(img)
+            clip = ImageClip(img_array)
 
             caption_clips.append(
                 clip

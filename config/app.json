@@ -3,8 +3,8 @@
     "music_provider": "freesafemusic",
     "shorts": {
         "min_duration_seconds": 45,
-        "max_duration_seconds": 60,
-        "target_duration_seconds": 52,
+        "max_duration_seconds": 59,
+        "target_duration_seconds": 50,
         "aspect_ratio": "9:16",
         "resolution": {
             "width": 1080,
@@ -16,7 +16,7 @@
     "audio": {
         "narration": {
             "voice": "en-US-GuyNeural",
-            "rate": "+8%",
+            "rate": "+3%",
             "pitch": "+1Hz",
             "volume": 1.0
         },
@@ -37,8 +37,7 @@
         "font_size": 54,
         "text_color": "white",
         "stroke_color": "black",
-        "stroke_width": 3,
-        "vertical_position": 0.62,
-        "bottom_margin_px": 60
+        "stroke_width": 2,
+        "vertical_position": 0.75
     }
 }
