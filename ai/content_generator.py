@@ -113,7 +113,7 @@ class ContentGenerator(BaseAIService):
             '- "narration_sentences": an array of EXACTLY 14 strings - the narration split '
             'into its 14 sentences. Each string is one complete spoken sentence of 9-11 words. '
             'Plain spoken text, no stage directions, no sound cues, no speaker labels.\n'
-            '- "mood": 1-3 lowercase words describing the emotional tone (for example: curious, mysterious, uplifting).\n'
+            '- "mood": 1-3 lowercase words describing the emotional tone. IMPORTANT: Choose mood words that match the story energy. Use words like: dramatic, tense, epic, mysterious, curious, dark, suspense, scary, horror, action, funny, comedy, playful, energetic, exciting, calm, peaceful, relaxing, chill, soft, gentle, warm, cozy, romantic, nostalgic, dreamy, sad, melancholic, happy, uplifting, inspiring.\\n'
             '- "visuals": an array of 14-18 objects, each {"context": "which part of the narration this footage supports", "search_query": "stock footage search phrase"}.\n\n'
             "FINAL CHECK BEFORE ANSWERING\n"
             "1. narration_sentences contains exactly 14 complete sentences of 10-12 words each.\n"
@@ -161,6 +161,16 @@ class ContentGenerator(BaseAIService):
             cleaned_sentences = []
             for s in sentences:
                 s = str(s).strip()
+                if not s:
+                    continue
+                # Remove JSON artifacts: stray quotes, brackets, braces
+                s = s.replace('"', '').replace("'", "")
+                s = s.replace("[", "").replace("]", "")
+                s = s.replace("{", "").replace("}", "")
+                # Remove any other non-standard characters (keep letters, numbers, basic punctuation)
+                s = re.sub(r"[^a-zA-Z0-9\s.,!?;:'\-_$%&@#+=/]", "", s)
+                # Clean up any double spaces created
+                s = re.sub(r"\s+", " ", s).strip()
                 if not s:
                     continue
                 if s[-1] not in ".!?…":

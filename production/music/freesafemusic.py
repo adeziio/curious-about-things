@@ -23,20 +23,20 @@ and more, with no attribution and no payment required.
 """
 
 MOOD_GENRE_MAP = {
-    "curious": ["ambient", "cinematic", "mysterious"],
+    "curious": ["cinematic", "mysterious", "dramatic"],
     "uplifting": ["inspiring", "uplifting", "upbeat"],
     "inspiring": ["inspiring", "uplifting", "cinematic"],
-    "wonder": ["ambient", "cinematic", "atmospheric"],
-    "mysterious": ["mysterious", "ambient", "dark"],
-    "dramatic": ["cinematic", "dramatic", "epic"],
-    "tense": ["mysterious", "dramatic", "cinematic"],
-    "dark": ["dark", "mysterious", "cinematic"],
-    "happy": ["happy", "uplifting", "acoustic"],
+    "wonder": ["cinematic", "atmospheric", "epic"],
+    "mysterious": ["dramatic", "cinematic", "dark"],
+    "dramatic": ["dramatic", "epic", "cinematic"],
+    "tense": ["dramatic", "cinematic", "suspense"],
+    "dark": ["dark", "dramatic", "cinematic"],
+    "happy": ["happy", "uplifting", "fun"],
     "sad": ["emotional", "piano", "melancholic"],
     "melancholic": ["emotional", "piano", "melancholic"],
-    "calm": ["calm", "peaceful", "soothing"],
-    "peaceful": ["peaceful", "soothing", "ambient"],
-    "relaxing": ["relaxing", "soothing", "chill"],
+    "calm": ["calm", "peaceful", "soft"],
+    "peaceful": ["peaceful", "soft", "ambient"],
+    "relaxing": ["relaxing", "soft", "chill"],
     "cozy": ["cozy", "warm", "gentle"],
     "warm": ["warm", "gentle", "acoustic"],
     "hopeful": ["inspiring", "emotional", "cinematic"],
@@ -52,7 +52,14 @@ MOOD_GENRE_MAP = {
     "smooth": ["smooth", "jazz", "lounge"],
     "gentle": ["gentle", "soft", "piano"],
     "soft": ["soft", "gentle", "ambient"],
-    "chill": ["chill", "lofi", "mellow"]
+    "chill": ["chill", "lofi", "mellow"],
+    "scary": ["dark", "horror", "suspense"],
+    "horror": ["horror", "dark", "suspense"],
+    "suspense": ["suspense", "dramatic", "tense"],
+    "funny": ["fun", "quirky", "comedy"],
+    "comedy": ["comedy", "fun", "quirky"],
+    "action": ["action", "epic", "dramatic"],
+    "sad": ["emotional", "piano", "melancholic"],
 }
 
 

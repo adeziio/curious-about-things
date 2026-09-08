@@ -22,7 +22,7 @@
         },
         "music": {
             "enabled": true,
-            "volume": 0.12
+            "volume": 0.08
         },
         "sfx": {
             "enabled": false,

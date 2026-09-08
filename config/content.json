@@ -49,6 +49,7 @@
             "Escalate the story rather than presenting disconnected facts.",
             "Write ALL narration in English only. Do not include words or characters from other languages.",
             "FORMAT NUMBERS FOR TTS: Write dollar amounts as $200000 (not $200,000 or $200 thousand). Write years as 1964 (not '1964). Avoid abbreviations that TTS might misread.",
+            "KEEP NARRATION CLEAN: Only use letters, numbers, and basic punctuation (periods, commas, question marks, exclamation marks). Never include JSON artifacts like quotes, brackets, or braces inside sentences.",
             "NARRATION STYLE: Always energetic, enthusiastic, curious, expressive, and engaging. Sound like a friend who just heard the craziest thing and HAS to tell you about it. Communicate: 'You have to hear this.'",
             "Use natural emphasis and excitement for surprising or important moments. This applies to ALL topics equally - there is no separate horror voice, documentary voice, serious voice, science voice, or comedy voice.",
             "The writing itself can create different emotions (mystery, tension, playfulness, enthusiasm) while the narrator remains energetically engaged throughout.",
