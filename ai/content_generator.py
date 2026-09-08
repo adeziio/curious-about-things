@@ -167,10 +167,15 @@ class ContentGenerator(BaseAIService):
                 s = s.replace('"', '').replace("'", "")
                 s = s.replace("[", "").replace("]", "")
                 s = s.replace("{", "").replace("}", "")
+                # Remove JSON field names that might leak into narration
+                s = re.sub(r'\b(mood|title|summary|visuals|search_query|context)\s*:\s*', '', s, flags=re.IGNORECASE)
+                s = re.sub(r',\s*(mood|title|summary|visuals)\s*,?', '', s, flags=re.IGNORECASE)
                 # Remove any other non-standard characters (keep letters, numbers, basic punctuation)
                 s = re.sub(r"[^a-zA-Z0-9\s.,!?;:'\-_$%&@#+=/]", "", s)
                 # Clean up any double spaces created
                 s = re.sub(r"\s+", " ", s).strip()
+                # Remove trailing commas or artifacts before punctuation
+                s = re.sub(r"\s*,\s*([.!?])", r"\1", s)
                 if not s:
                     continue
                 if s[-1] not in ".!?…":
