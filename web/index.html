@@ -4713,6 +4713,10 @@
             false;
 
 
+        let statusFailures =
+            0;
+
+
         async function api(
             url,
             options = {}
@@ -4724,20 +4728,42 @@
                     options
                 );
 
+            const text =
+                await response.text();
 
-            const data =
-                await response.json();
+            let data = null;
 
+            try {
+
+                data = JSON.parse(
+                    text
+                );
+
+            } catch (parseError) {
+
+                /*
+                 * The server returned a non-JSON
+                 * response (for example an HTML
+                 * error page during heavy load).
+                 * Surface a friendly message
+                 * instead of the raw JSON parser
+                 * error ("Unexpected token '<'").
+                 */
+
+                throw new Error(
+                    `Server error (HTTP ${response.status}).`
+                );
+
+            }
 
             if (!response.ok) {
 
                 throw new Error(
                     data.error ||
-                    "Request failed."
+                    `Request failed (HTTP ${response.status}).`
                 );
 
             }
-
 
             return data;
 
@@ -5561,6 +5587,8 @@
             }
 
 
+            statusFailures = 0;
+
             statusTimer =
                 setInterval(
                     updateStatus,
@@ -5582,6 +5610,12 @@
                         "/api/status"
                     );
 
+                /*
+                 * A successful poll clears any
+                 * transient failure streak.
+                 */
+
+                statusFailures = 0;
 
                 const previousStatus =
                     lastStatus;
@@ -5729,9 +5763,25 @@
 
             } catch (error) {
 
-                showError(
-                    error.message
-                );
+                /*
+                 * Polling runs every 1.5 seconds, so
+                 * a single transient failure (server
+                 * briefly busy while rendering video,
+                 * a dropped request, a network hiccup)
+                 * should NOT surface as an error.
+                 * Only show an error after several
+                 * consecutive failures.
+                 */
+
+                statusFailures += 1;
+
+                if (statusFailures >= 4) {
+
+                    showError(
+                        "Lost connection to the server while checking generation status."
+                    );
+
+                }
 
             }
 
