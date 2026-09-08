@@ -136,6 +136,9 @@ class PexelsVideoProvider(
 
         driver = self._create_driver()
 
+        # Maximize window to avoid bot detection during video generation
+        driver.maximize_window()
+
         downloaded = []
 
         try:
@@ -212,6 +215,9 @@ class PexelsVideoProvider(
         finally:
 
             try:
+
+                # Minimize window after video generation is complete
+                driver.minimize_window()
 
                 driver.quit()
 
