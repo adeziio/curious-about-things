@@ -20,12 +20,11 @@ NARRATION_SCHEMA = {
             "type": "array",
             "minItems": 14,
             "maxItems": 14,
-            # Character bounds are grammar-enforced by Ollama, which makes the
-            # total narration word count deterministic (~130-160 words):
-            # 14 sentences x 55-68 chars ~= 45-55 seconds at ~2.9 words/sec,
-            # deliberately below the 60-second Shorts ceiling so nothing
-            # gets cut off at the one-minute mark.
-            "items": {"type": "string", "minLength": 55, "maxLength": 68},
+            # Word count per sentence is grammar-enforced by Ollama.
+            # Target: ~140 words total (50 seconds × 2.8 words/sec)
+            # 14 sentences × 10 words = 140 words
+            # This keeps narration under 59 seconds for YouTube Shorts.
+            "items": {"type": "string", "minLength": 45, "maxLength": 60},
         },
         "mood": {"type": "string"},
         "visuals": {
@@ -83,17 +82,17 @@ class ContentGenerator(BaseAIService):
         # counts, and must be stopped from stacking tiny fragments.
         length_requirement = (
             "ABSOLUTE REQUIREMENT - NARRATION LENGTH\n"
-            "Write the narration as EXACTLY 14 complete sentences, each sentence 9-12 words "
-            "long, totaling about " + str(word_target) + " words. Never write strings of short "
-            "fragments - every sentence must be a full, substantial spoken thought. A shorter "
-            "script is a FAILED response. Follow this blueprint exactly:\n"
-            "- Sentence 1: the hook - a surprising claim or vivid moment.\n"
-            "- Sentences 2-3: the setup - establish the situation so the viewer cares.\n"
+            "Write the narration as EXACTLY 14 complete sentences, each sentence EXACTLY 9-11 words "
+            "long, totaling about 140 words. Never write strings of short fragments - every sentence "
+            "must be a full, substantial spoken thought. A shorter or longer script is a FAILED response. "
+            "Follow this blueprint exactly:\n"
+            "- Sentence 1: the hook - a surprising claim or vivid moment (9-11 words).\n"
+            "- Sentences 2-3: the setup - establish the situation so the viewer cares (9-11 words each).\n"
             "- Sentences 4-10: escalation - at least 4 different verified facts, each fully "
-            "developed in its own sentence, with detail that deepens the intrigue.\n"
-            "- Sentences 11-12: the surprising reveal and the connection to the viewer.\n"
-            "- Sentence 13: the twist - a memorable observation or unexpected angle.\n"
-            "- Sentence 14: the closing - a satisfying final thought or a natural curiosity question.\n"
+            "developed in its own sentence, with detail that deepens the intrigue (9-11 words each).\n"
+            "- Sentences 11-12: the surprising reveal and the connection to the viewer (9-11 words each).\n"
+            "- Sentence 13: the twist - a memorable observation or unexpected angle (9-11 words).\n"
+            "- Sentence 14: the closing - a satisfying final thought or a natural curiosity question (9-11 words).\n"
         )
         return (
             "You are the creative writer for \"" + name + "\", a short-form video channel "
@@ -112,13 +111,13 @@ class ContentGenerator(BaseAIService):
             '- "title": a short, clickable video title.\n'
             '- "summary": a one-sentence teaser of the episode.\n'
             '- "narration_sentences": an array of EXACTLY 14 strings - the narration split '
-            'into its 14 sentences. Each string is one complete spoken sentence of 9-12 words. '
+            'into its 14 sentences. Each string is one complete spoken sentence of 9-11 words. '
             'Plain spoken text, no stage directions, no sound cues, no speaker labels.\n'
             '- "mood": 1-3 lowercase words describing the emotional tone (for example: curious, mysterious, uplifting).\n'
             '- "visuals": an array of 14-18 objects, each {"context": "which part of the narration this footage supports", "search_query": "stock footage search phrase"}.\n\n'
             "FINAL CHECK BEFORE ANSWERING\n"
-            "1. narration_sentences contains exactly 14 complete sentences of 9-12 words each.\n"
-            "2. Every sentence is a full, substantial spoken thought of 12-14 words.\n"
+            "1. narration_sentences contains exactly 14 complete sentences of 9-11 words each.\n"
+            "2. Count the words in EVERY sentence - each must be 9-11 words, no more, no less.\n"
             "3. The visuals array contains at least 14 search queries covering the ENTIRE narration.\n"
             "4. Every sentence carries real, verified information - no filler.\n"
         )
@@ -255,6 +254,14 @@ class ContentGenerator(BaseAIService):
                 f"Narration is too long ({word_count} words, maximum is {max_words}). "
                 "Please condense the story to fit 50-58 seconds."
             )
+
+        # Validate each sentence word count
+        narration_sentences = content.get("narration_sentences", [])
+        sentences = narration_sentences if narration_sentences else re.split(r"(?<=[.!?])\s+", narration)
+        for i, sentence in enumerate(sentences, 1):
+            sentence_word_count = len(sentence.split())
+            if sentence_word_count < 8 or sentence_word_count > 12:
+                self.log(f"Warning: Sentence {i} has {sentence_word_count} words (target: 9-11)")
 
         # Enough visuals to keep a new clip every 3-4 seconds.
         min_visuals = 12

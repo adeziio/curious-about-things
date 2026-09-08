@@ -47,6 +47,8 @@
             "This structure is a guideline, not a rigid formula - adapt it naturally to the topic.",
             "Write substantial, flowing sentences of 9-12 words each, delivered with energy and natural emphasis - never stack tiny fragments or choppy 3-6 word sentences.",
             "Escalate the story rather than presenting disconnected facts.",
+            "Write ALL narration in English only. Do not include words or characters from other languages.",
+            "FORMAT NUMBERS FOR TTS: Write dollar amounts as $200000 (not $200,000 or $200 thousand). Write years as 1964 (not '1964). Avoid abbreviations that TTS might misread.",
             "NARRATION STYLE: Always energetic, enthusiastic, curious, expressive, and engaging. Sound like a friend who just heard the craziest thing and HAS to tell you about it. Communicate: 'You have to hear this.'",
             "Use natural emphasis and excitement for surprising or important moments. This applies to ALL topics equally - there is no separate horror voice, documentary voice, serious voice, science voice, or comedy voice.",
             "The writing itself can create different emotions (mystery, tension, playfulness, enthusiasm) while the narrator remains energetically engaged throughout.",
@@ -63,7 +65,11 @@
             "Spread the queries across the ENTIRE narration from beginning to end - every part of the story needs footage.",
             "Visual changes should follow the story and narration. Use visuals to reinforce the hook, the subject, important facts, escalation, funny moments, surprising details, and the payoff.",
             "Do NOT include camera movements, cinematic shot descriptions, animation instructions, lighting specifications, or character descriptions.",
-            "Queries must be findable on a stock footage site - prefer common, well-shot subjects."
+            "Queries must be findable on a stock footage site - prefer common, well-shot subjects.",
+            "IMPORTANT: Keep search queries SIMPLE and VISUAL. Use concrete nouns and simple actions.",
+            "GOOD queries: 'parking meter', 'san francisco street', 'car parking', 'city traffic', 'money coins', 'woman thinking', 'office building'",
+            "BAD queries: 'government absurdity', 'city experiment 1974', 'tech startup salvaging copper', 'bureaucracy chaos' - these are too abstract or specific",
+            "When in doubt, use simple visual terms that describe what you want to SEE, not abstract concepts."
         ],
         "creative_directions": [
             "This is an ENTERTAINMENT-FIRST channel. The goal is to entertain first and educate naturally along the way.",
