@@ -136,6 +136,52 @@ class ContentGenerator(BaseAIService):
         self.log("Episode content generated: " + content["title"])
         return content
 
+    def _clean_tts_text(self, text):
+        """Sanitize text so only TTS-friendly characters remain.
+
+        Removes JSON artifacts, symbols that text-to-speech engines read
+        badly (&, #, @, +, =, /, ;, :), punctuation clusters like "?$,."
+        and stray dollar signs that are not attached to a number.
+        """
+        s = str(text).strip()
+        if not s:
+            return s
+        # Remove quotes, brackets, braces and parentheses
+        s = s.replace('"', "").replace("'", "").replace("\u2019", "").replace("\u2018", "")
+        s = re.sub(r"[\[\]{}()]", "", s)
+        # Remove JSON field names that might leak into narration
+        # (cut everything from the leaked field name to the end)
+        s = re.sub(
+            r"\b(mood|title|summary|visuals|search_query|context)\s*:.*$",
+            "",
+            s,
+            flags=re.IGNORECASE,
+        )
+        s = re.sub(
+            r",\s*mood\b.*$",
+            "",
+            s,
+            flags=re.IGNORECASE,
+        )
+        # Replace forbidden symbols with a space (keeps words separated)
+        # instead of gluing them together ("obviously/sure" -> "obviously sure")
+        s = re.sub(r"[^a-zA-Z0-9\s.,!?\-$%]", " ", s)
+        # Remove commas inside numbers ("200,000" -> "200000") so TTS
+        # reads the full number instead of pausing mid-number
+        s = re.sub(r"(?<=\d),(?=\d)", "", s)
+        # Collapse punctuation clusters to a single mark ("hero?$,." -> "hero?")
+        s = re.sub(r"([.,!?\-$%])[.,!?\-$%]+", r"\1", s)
+        # A dollar sign is only meaningful directly before a number
+        s = re.sub(r"\$(?!\d)", "", s)
+        # No space before punctuation, exactly one space after it
+        s = re.sub(r"\s+([.,!?])", r"\1", s)
+        s = re.sub(r"([.,!?])(?=[a-zA-Z0-9])", r"\1 ", s)
+        # Clean up any double spaces created
+        s = re.sub(r"\s+", " ", s).strip()
+        # Remove trailing commas or artifacts before punctuation
+        s = re.sub(r"\s*,\s*([.!?])", r"\1", s)
+        return s
+
     def parse_content(self, response):
         if not response:
             return None
@@ -151,8 +197,8 @@ class ContentGenerator(BaseAIService):
                 return None
         if not isinstance(data, dict):
             return None
-        title = str(data.get("title", "")).strip()
-        summary = str(data.get("summary", "")).strip()
+        title = self._clean_tts_text(str(data.get("title", "")))
+        summary = self._clean_tts_text(str(data.get("summary", "")))
         # Structured mode returns the narration as an array of sentences.
         sentences = data.get("narration_sentences")
         if isinstance(sentences, list) and sentences:
@@ -160,30 +206,15 @@ class ContentGenerator(BaseAIService):
             # engine pauses naturally at sentence boundaries.
             cleaned_sentences = []
             for s in sentences:
-                s = str(s).strip()
+                s = self._clean_tts_text(s)
                 if not s:
                     continue
-                # Remove JSON artifacts: stray quotes, brackets, braces
-                s = s.replace('"', '').replace("'", "")
-                s = s.replace("[", "").replace("]", "")
-                s = s.replace("{", "").replace("}", "")
-                # Remove JSON field names that might leak into narration
-                s = re.sub(r'\b(mood|title|summary|visuals|search_query|context)\s*:\s*', '', s, flags=re.IGNORECASE)
-                s = re.sub(r',\s*(mood|title|summary|visuals)\s*,?', '', s, flags=re.IGNORECASE)
-                # Remove any other non-standard characters (keep letters, numbers, basic punctuation)
-                s = re.sub(r"[^a-zA-Z0-9\s.,!?;:'\-_$%&@#+=/]", "", s)
-                # Clean up any double spaces created
-                s = re.sub(r"\s+", " ", s).strip()
-                # Remove trailing commas or artifacts before punctuation
-                s = re.sub(r"\s*,\s*([.!?])", r"\1", s)
-                if not s:
-                    continue
-                if s[-1] not in ".!?…":
+                if s[-1] not in ".!?":
                     s += "."
                 cleaned_sentences.append(s)
             narration = " ".join(cleaned_sentences).strip()
         else:
-            narration = str(data.get("narration", "")).strip()
+            narration = self._clean_tts_text(str(data.get("narration", "")))
         visuals = data.get("visuals", [])
         # Be tolerant of empty optional fields: derive a title from the
         # summary or the opening sentence rather than discarding a valid
