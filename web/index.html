@@ -1426,6 +1426,39 @@
             color: black;
             font-weight: 900;
             letter-spacing: 0.5px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: background 0.2s, color 0.2s, transform 0.2s;
+        }
+
+        .next-upload strong:hover,
+        .next-upload strong:focus-visible {
+            background: rgba(164, 255, 99, 0.18);
+            outline: none;
+            transform: scale(1.06);
+        }
+
+        .next-upload strong:active {
+            transform: scale(0.96);
+        }
+
+
+        .episode-card.target-scroll {
+            animation: target-scroll-flash 1.6s ease-out;
+        }
+
+
+        @keyframes target-scroll-flash {
+
+            0% {
+                box-shadow: 0 0 0 4px rgba(164, 255, 99, 0.9);
+            }
+
+            100% {
+                box-shadow: 0 0 0 4px rgba(164, 255, 99, 0);
+            }
+
         }
 
 
@@ -4066,7 +4099,8 @@
                         </div>
                         <div class="next-upload" id="nextUpload" style="display:none;">
                             <span class="next-upload-dot"></span>
-                            Next Upload: <strong id="nextUploadNumber">---</strong>
+                            Next Upload: <strong id="nextUploadNumber" role="button" tabindex="0"
+                                title="Scroll to this episode" onclick="scrollToNextEpisode()">---</strong>
                         </div>
                     </div>
 
@@ -6696,6 +6730,14 @@
                 nextUploadEl.style.display =
                     "";
 
+                nextUploadEl.dataset.targetNumber =
+                    String(
+                        next.number
+                    ).padStart(
+                        3,
+                        "0"
+                    );
+
             } else {
 
                 nextUploadNumberEl.textContent =
@@ -6704,7 +6746,89 @@
                 nextUploadEl.style.display =
                     "none";
 
+                delete nextUploadEl.dataset.targetNumber;
+
             }
+
+        }
+
+
+        function scrollToNextEpisode() {
+
+            const nextUploadEl =
+                document.getElementById(
+                    "nextUpload"
+                );
+
+            if (
+                !nextUploadEl ||
+                !nextUploadEl.dataset.targetNumber
+            ) {
+
+                return;
+
+            }
+
+            const targetNumber =
+                nextUploadEl.dataset.targetNumber;
+
+            const targetCard =
+                Array
+                    .from(
+                        document.querySelectorAll(
+                            ".episode-card"
+                        )
+                    )
+                    .find(
+                        card => {
+
+                            const numberEl =
+                                card.querySelector(
+                                    ".episode-number"
+                                );
+
+                            return (
+                                numberEl &&
+                                numberEl.textContent.trim() ===
+                                "#" +
+                                targetNumber
+                            );
+
+                        }
+                    );
+
+            if (
+                !targetCard
+            ) {
+
+                return;
+
+            }
+
+            /*
+             * Scroll the matching episode card into view and
+             * briefly highlight it so the user can spot it.
+             */
+
+            targetCard.scrollIntoView({
+                behavior: "smooth",
+                block: "center"
+            });
+
+            targetCard.classList.add(
+                "target-scroll"
+            );
+
+            setTimeout(
+                () => {
+
+                    targetCard.classList.remove(
+                        "target-scroll"
+                    );
+
+                },
+                1700
+            );
 
         }
 
