@@ -46,11 +46,11 @@
             "Avoid overly formal scientific language when a simpler explanation is accurate. When technical terminology is necessary, explain it naturally. Do not sacrifice accuracy for simplicity.",
             "The narration should sound conversational, energetic, enthusiastic, and natural. It should feel like someone excitedly telling you something fascinating.",
             "Do not make the narration flat, robotic, overly formal, overly dramatic, cheesy, or commercial-like.",
-            "NARRATION PACING: Target 50-58 seconds of actual content. Flow at a natural speaking pace. Do not slow down, stretch, artificially pause, or alter delivery just to reach the target duration. Never pad with filler or repetitive statements.",
+            "NARRATION PACING: Target around 1 minute of actual content. Flow at a natural speaking pace. Do not slow down, stretch, artificially pause, or alter delivery just to reach the target duration. Never pad with filler or repetitive statements.",
             "If the story is too short, add more interesting content: another fact, additional context, stronger escalation, a funny comparison, an unexpected detail, or a better payoff. Content comes first - duration follows naturally.",
             "CLEAN UP YOUR TEXT: Check for and fix spelling mistakes, missing apostrophes (e.g. youre should be you're, doesnt should be doesn't), punctuation errors, and capitalization issues. Proofread every sentence before returning it. Do not leave contractions broken, commas misplaced, or sentences starting with lowercase letters unless stylistically intentional. Clean text is non-negotiable."
         ],
-        "narration_target_seconds": 50,
+        "narration_target_seconds": 60,
         "words_per_second": 2.9,
         "visual_rules": [
             "Generate AT LEAST 14 visual search queries (14-18 total) - enough for a new visual every 3-4 seconds across the full narration. Count them before answering.",
