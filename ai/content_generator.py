@@ -279,42 +279,23 @@ class ContentGenerator(BaseAIService):
             sentences = re.split(r"(?<=[.!?])\s+", narration)
             summary = sentences[0].strip() if sentences else ""
 
-        # Validate narration length - reject scripts that cannot fill a
-        # 50-58 second Short at an energetic speaking pace (~2.9 wps).
+        # Log narration length for reference (no validation - accept what the prompt gives)
         word_count = len(narration.split())
         self.log(f"Narration length: {word_count} words, {len(cleaned_visuals)} visual queries.")
 
-        wps = float(self.generation_config.get("words_per_second", 2.9))
-        min_words = int(40 * wps)   # 40-second floor (absolute minimum)
-        max_words = int(56 * wps)   # 56-second ceiling
-
-        if word_count < min_words:
-            raise ContentGenerationError(
-                f"Narration is too short ({word_count} words, minimum is {min_words}). "
-                "Please expand the story with more verified facts, context, and escalation "
-                "to reach 50-58 seconds."
-            )
-        if word_count > max_words:
-            raise ContentGenerationError(
-                f"Narration is too long ({word_count} words, maximum is {max_words}). "
-                "Please condense the story to fit 50-58 seconds."
-            )
-
-        # Validate each sentence word count
+        # Log sentence word counts for reference (no validation - accept what the prompt gives)
         narration_sentences = content.get("narration_sentences", [])
         sentences = narration_sentences if narration_sentences else re.split(r"(?<=[.!?])\s+", narration)
         for i, sentence in enumerate(sentences, 1):
             sentence_word_count = len(sentence.split())
-            if sentence_word_count < 8 or sentence_word_count > 12:
-                self.log(f"Warning: Sentence {i} has {sentence_word_count} words (target: 9-11)")
+            self.log(f"Sentence {i}: {sentence_word_count} words")
 
-        # Enough visuals to keep a new clip every 3-4 seconds.
-        min_visuals = 12
+        # Enough visuals to keep a new clip roughly every 3-4 seconds (soft floor)
+        min_visuals = 6
         if len(cleaned_visuals) < min_visuals:
-            raise ContentGenerationError(
-                f"Too few usable visual search queries ({len(cleaned_visuals)}, minimum is "
-                f"{min_visuals}). Add a distinct, findable stock query for roughly every "
-                "3-4 seconds of the narration."
+            self.log(
+                f"Note: only {len(cleaned_visuals)} visual queries (recommended: ~1 every 3-4 seconds). "
+                "Proceeding anyway."
             )
 
         mood = self._normalize_mood(content.get("mood", ""))

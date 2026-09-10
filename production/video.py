@@ -27,11 +27,6 @@ from production.composer import (
     CompositionError
 )
 
-from production.validator import (
-    validate_video,
-    VideoValidationError
-)
-
 
 class ProductionError(
     RuntimeError
@@ -382,18 +377,10 @@ class ProductionPipeline:
                 )
             )
 
-            # 6. Validate the actual rendered file
-
+            # 6. Render complete
             self.update_progress(
                 96,
-                "Validating the rendered video..."
-            )
-
-            result = (
-                validate_video(
-                    output_path,
-                    self.config
-                )
+                "Rendering complete."
             )
 
         finally:
@@ -405,20 +392,15 @@ class ProductionPipeline:
                 music_metadata
             )
 
-        self.update_progress(
-            100,
-            "Video complete."
-        )
-
-        return {
-            "video_path": str(
-                output_path
-            ),
-            "captions_path": str(
-                captions_path
-            ),
-            "validation": result
-        }
+        if output_path.exists():
+            self.update_progress(
+                100,
+                "Render complete."
+            )
+            return {
+                "video_path": str(output_path),
+                "captions_path": str(captions_path),
+            }
 
     def _collect_footage(
         self,

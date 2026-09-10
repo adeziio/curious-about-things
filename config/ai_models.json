@@ -4,7 +4,7 @@
             "enabled": true,
             "provider": "ollama",
             "model": "qwen3:8b",
-            "thinking": true,
+            "thinking": false,
             "timeout": 900,
             "options": {
                 "temperature": 0.7,
