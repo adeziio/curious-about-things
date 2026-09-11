@@ -53,7 +53,7 @@
         "narration_target_seconds": 60,
         "words_per_second": 2.9,
         "visual_rules": [
-            "Generate AT LEAST 14 visual search queries (14-18 total) - enough for a new visual every 3-4 seconds across the full narration. Count them before answering.",
+            "Generate EXACTLY 14 visual search queries, one for each narration sentence — a clean 1:1 mapping so the whole script has a matching visual. This keeps narration and visuals aligned on a ~1-minute short: 14 sentences × 14 visuals. Each {\"context\": \"which part of the narration this footage supports\", \"search_query\": \"stock footage search phrase\"}. Give every sentence a visual; do not reuse the same visual twice. Do not plan fallback queries or a second generation pass — the first set must be the final set.",
             "Spread the queries across the ENTIRE narration from beginning to end - every part of the story needs footage.",
             "Visual changes should follow the story and narration. Use visuals to reinforce the hook, the subject, important facts, escalation, funny moments, surprising details, and the payoff.",
             "THINK LIKE A STOCK-FOOTAGE EDITOR: For each moment in the narration, ask yourself: 'What footage would I actually put on screen here to make this Short more visually interesting?' Do NOT translate the narration directly into a literal visual description.",

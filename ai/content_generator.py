@@ -10,7 +10,7 @@ class ContentGenerationError(RuntimeError):
 
 # JSON schema passed to Ollama's structured-output mode. It grammar-enforces
 # the response shape so the model cannot return short narrations: exactly 14
-# narration sentences and 14-18 visual queries.
+# narration sentences and 14 visual queries.
 NARRATION_SCHEMA = {
     "type": "object",
     "properties": {
@@ -20,18 +20,25 @@ NARRATION_SCHEMA = {
             "type": "array",
             "minItems": 14,
             "maxItems": 14,
-            # A generous per-sentence character budget: a hard 75-char cap
-            # makes grammar-constrained sampling truncate the string mid-
-            # thought (e.g. "...across the" + "space, where..." -> "the. space").
-            # The 14-item count and the prompt's 10-13-word blueprint keep the
-            # narration compact; this cap only bounds pathological outliers.
-            "items": {"type": "string", "minLength": 30, "maxLength": 160},
+            # Per-sentence maxLength is removed on purpose: a hard char cap is
+            # what caused the "the. space" mid-thought truncation in episode 001
+            # (a ~93-char sentence was forced to stop at the 75-char boundary, so
+            # the rest spilled into the next array item and got auto-punctuated).
+            # The real length control is the prompt's 10-13-word blueprint plus the
+            # 14-item count; minLength: 30 (~5 words) is only an empty/tiny-string
+            # floor, not a truncation bound. _repair_split_artifacts + final check #8
+            # are the safety net if a sentence still splits across two items.
+            "items": {"type": "string", "minLength": 30},
         },
         "mood": {"type": "string"},
+        # Exactly 14 visuals, one per narration sentence, for a clean 1:1
+        # mapping on a ~1-minute short (14 clips × ~4 s each ≈ 56 s of
+        # footage, fitting the 58 s target). Keeps narration and visuals
+        # aligned so a 14-sentence script always has a matching visual.
         "visuals": {
             "type": "array",
             "minItems": 14,
-            "maxItems": 18,
+            "maxItems": 14,
             "items": {
                 "type": "object",
                 "properties": {
@@ -68,7 +75,7 @@ class ContentGenerator(BaseAIService):
         visual_rules = self.format_bullets(c.get("visual_rules", []))
         creative_directions = self.format_bullets(c.get("creative_directions", []))
         target_seconds = c.get("narration_target_seconds", 58)
-        wps = c.get("words_per_second", 2.7)
+        wps = c.get("words_per_second", 2.9)
         word_min = int(53 * wps)
         word_target = int(target_seconds * wps)
         instruction = str(instruction or "").strip()
@@ -129,11 +136,11 @@ class ContentGenerator(BaseAIService):
             'into its 14 sentences. Each string is one complete spoken sentence of 9-13 words. '
             'Plain spoken text, no stage directions, no sound cues, no speaker labels.\n'
             '- "mood": 1-3 lowercase words describing the emotional tone. IMPORTANT: Choose mood words that match the story energy. Use words like: dramatic, tense, epic, mysterious, curious, dark, suspense, scary, horror, action, funny, comedy, playful, energetic, exciting, calm, peaceful, relaxing, chill, soft, gentle, warm, cozy, romantic, nostalgic, dreamy, sad, melancholic, happy, uplifting, inspiring.\\n'
-            '- "visuals": an array of 14-18 objects, each {"context": "which part of the narration this footage supports", "search_query": "stock footage search phrase"}.\n\n'
+            '- "visuals": EXACTLY 14 objects — one per narration sentence, so the whole script has a matching visual. Each {"context": "which part of the narration this footage supports", "search_query": "stock footage search phrase"}. Give every sentence a visual; do not reuse the same visual twice.\\n'
             "FINAL CHECK BEFORE ANSWERING\n"
             "1. narration_sentences contains exactly 14 complete sentences.\n"
             "2. Each sentence should be 9-13 words. Total narration should be around 160-190 words (approximately 1 minute of spoken content at a natural pace).\n"
-            "3. The visuals array contains at least 14 search queries covering the ENTIRE narration.\n"
+            "3. The visuals array contains exactly 14 search queries — one per narration sentence, covering the entire narration.\n"
             "4. Every sentence carries real, verified information - no filler.\n"
             "5. Every narration sentence is a complete, natural English sentence with correct spelling, apostrophes, punctuation, and spacing - no broken splits like 'cells. the bricks' or 'process. called', and no awkward boundaries from the 14-sentence split.\n"
             "6. Every visual object has a valid, complete context value from the beat words (hook, setup, escalation, reveal, twist, closing) - never truncated values like 'escal,'.\n"
@@ -145,7 +152,7 @@ class ContentGenerator(BaseAIService):
         prompt = self.build_prompt(instruction)
         self.log("Generating episode content...")
         # Grammar-constrained output: the schema forces the model to emit
-        # 14 narration sentence strings and 14-18 visual queries, which even
+        # 14 narration sentence strings and 14 visual queries (one per sentence).
         # a small local model counts reliably (unlike word counts in prose).
         response = self.llm.generate(prompt, response_format=NARRATION_SCHEMA)
         content = self.parse_content(response)
@@ -327,11 +334,12 @@ class ContentGenerator(BaseAIService):
             sentence_word_count = len(sentence.split())
             self.log(f"Sentence {i}: {sentence_word_count} words")
 
-        # Enough visuals to keep a new clip roughly every 3-4 seconds (soft floor)
-        min_visuals = 6
+        # Enough visuals: every narration sentence should have a matching visual (1:1).
+        # This is a soft floor — fewer than 2 usable visuals will already raise.
+        min_visuals = 2
         if len(cleaned_visuals) < min_visuals:
             self.log(
-                f"Note: only {len(cleaned_visuals)} visual queries (recommended: ~1 every 3-4 seconds). "
+                f"Note: only {len(cleaned_visuals)} visual queries (recommended: ~1 visual per narration sentence). "
                 "Proceeding anyway."
             )
 
