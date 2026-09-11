@@ -33,6 +33,14 @@ DIMENSION_PATTERN = re.compile(
     re.IGNORECASE
 )
 
+# Strict quality requirements for YouTube Shorts 4K vertical footage.
+# A video must meet BOTH requirements to qualify:
+#   1. Vertical orientation: width < height (portrait)
+#   2. 4K/UHD resolution: shorter side >= 2160 AND longer side >= 3840
+# No fallbacks to lower resolutions or horizontal orientations.
+MIN_VERTICAL_SHORT_SIDE = 2160
+MIN_VERTICAL_LONG_SIDE = 3840
+
 PARTIAL_SUFFIXES = (
     ".crdownload",
     ".part",
@@ -375,6 +383,15 @@ class PexelsVideoProvider(
         self,
         url
     ):
+        """
+        Checks whether a Pexels video URL qualifies as vertical 4K.
+
+        A video must meet BOTH requirements:
+          1. Vertical orientation: width < height (portrait)
+          2. 4K/UHD resolution: short side >= 2160 AND long side >= 3840
+
+        Returns False for any video that does not meet both requirements.
+        """
 
         match = DIMENSION_PATTERN.search(
             url
@@ -384,15 +401,43 @@ class PexelsVideoProvider(
 
             return False
 
-        width = int(
-            match.group(1)
+        try:
+            width = int(
+                match.group(1)
+            )
+
+            height = int(
+                match.group(2)
+            )
+        except (ValueError, IndexError):
+
+            return False
+
+        # Must be vertical (portrait) orientation.
+        if width >= height:
+
+            return False
+
+        # Must meet 4K/UHD minimum resolution requirements.
+        short_side = min(
+            width,
+            height
         )
 
-        height = int(
-            match.group(2)
+        long_side = max(
+            width,
+            height
         )
 
-        return height >= width
+        if short_side < MIN_VERTICAL_SHORT_SIDE:
+
+            return False
+
+        if long_side < MIN_VERTICAL_LONG_SIDE:
+
+            return False
+
+        return True
 
     def _download_video(
         self,
@@ -436,6 +481,14 @@ class PexelsVideoProvider(
         self,
         url
     ):
+        """
+        Generates download variants for a qualifying video.
+
+        Only 4K vertical variants are generated. The highest-resolution
+        variant is tried first, followed by progressively smaller (but
+        still 4K) variants. No non-4K or landscape variants are ever
+        generated.
+        """
 
         match = DIMENSION_PATTERN.search(
             url
@@ -455,26 +508,12 @@ class PexelsVideoProvider(
 
         fps = match.group(3)
 
-        if height >= width:
-
-            # Vertical source - try progressively larger
-            # vertical renders.
-
-            sizes = [
-                (1080, 1920),
-                (720, 1280),
-                (width, height)
-            ]
-
-        else:
-
-            # Landscape source - try larger landscape renders.
-
-            sizes = [
-                (1920, 1080),
-                (1280, 720),
-                (width, height)
-            ]
+        # Only generate 4K vertical variants.
+        # Start with the highest resolution and work down.
+        sizes = [
+            (2160, 3840),  # 4K UHD vertical
+            (width, height),  # Original resolution
+        ]
 
         variants = []
 

@@ -20,11 +20,12 @@ NARRATION_SCHEMA = {
             "type": "array",
             "minItems": 14,
             "maxItems": 14,
-            # Word count per sentence is grammar-enforced by Ollama.
-            # Target: 170-190 words total (60 seconds × 2.9 words/sec)
-            # 14 sentences × 10-13 words = 140-182 words
-            # Valid range: 150-210 words (generous buffer for TTS timing)
-            "items": {"type": "string", "minLength": 50, "maxLength": 75},
+            # A generous per-sentence character budget: a hard 75-char cap
+            # makes grammar-constrained sampling truncate the string mid-
+            # thought (e.g. "...across the" + "space, where..." -> "the. space").
+            # The 14-item count and the prompt's 10-13-word blueprint keep the
+            # narration compact; this cap only bounds pathological outliers.
+            "items": {"type": "string", "minLength": 30, "maxLength": 160},
         },
         "mood": {"type": "string"},
         "visuals": {
@@ -94,13 +95,27 @@ class ContentGenerator(BaseAIService):
             "- Sentence 13: the twist - a memorable observation or unexpected angle (10-13 words).\n"
             "- Sentence 14: the closing - a satisfying final thought or a natural curiosity question (10-13 words).\n"
         )
+        topic_selection = (
+            "RANDOM CATEGORY DRAW (MANDATORY STEP 1)\\n"
+            "Before writing anything, randomly select exactly ONE category from the list below. "
+            "Use a uniform random pick - never your favorite or the easiest category. "
+            "Do not use any prior episode, previous title, or history to decide; this is an "
+            "independent random draw for this episode only. Give every category a fair chance, "
+            "including uncommon ones like Language, Food, Geography, Ancient civilizations, "
+            "Strange inventions, or Weird facts about normal life. Avoid defaulting to Human body "
+            "or Science.\\n"
+            "Then choose the most interesting, surprising fact or angle WITHIN that selected "
+            "category - something real that creates a 'wait, what?' reaction. Apply the existing "
+            "entertainment -> curiosity -> information direction inside the category.\\n"
+        )
         return (
             "You are the creative writer for \"" + name + "\", a short-form video channel "
             "about anything genuinely fascinating.\n\n" +
             length_requirement +
             "\nCHANNEL DESCRIPTION\n" + desc +
-            "\n\nTOPIC FREEDOM\nYou may choose ANY subject that is interesting, surprising, "
-            "or delightful. Example areas (you are not limited to these):\n" + topics +
+            "\n\nTOPIC RESPONSIBILITY\n" + topic_selection +
+            "\nTOPIC FREEDOM\nThese are the categories to pick from, with roughly equal probability "
+            "across episodes (the requested 19):\n" + topics +
             "\n\n" + instruction_section +
             "STORYTELLING PATTERN (guideline, not a rigid formula - adapt it naturally "
             "to the topic):\n" + storytelling +
@@ -120,6 +135,10 @@ class ContentGenerator(BaseAIService):
             "2. Each sentence should be 9-13 words. Total narration should be around 160-190 words (approximately 1 minute of spoken content at a natural pace).\n"
             "3. The visuals array contains at least 14 search queries covering the ENTIRE narration.\n"
             "4. Every sentence carries real, verified information - no filler.\n"
+            "5. Every narration sentence is a complete, natural English sentence with correct spelling, apostrophes, punctuation, and spacing - no broken splits like 'cells. the bricks' or 'process. called', and no awkward boundaries from the 14-sentence split.\n"
+            "6. Every visual object has a valid, complete context value from the beat words (hook, setup, escalation, reveal, twist, closing) - never truncated values like 'escal,'.\n"
+            "7. The topic belongs to exactly one randomly selected category from the list - an even random draw, not the easiest category, not based on any prior episode.\n"
+            "8. Each narration_sentences item is EXACTLY ONE complete sentence: one capital start, one terminal punctuation mark, never two statements fused without punctuation (WRONG: 'It's not a glitch it's how we perceive the world'), never one thought split across two items, never quoted terms (WRONG: 'constructive perception').\n"
         )
 
     def generate(self, instruction=None):
@@ -170,6 +189,10 @@ class ContentGenerator(BaseAIService):
         # Remove commas inside numbers ("200,000" -> "200000") so TTS
         # reads the full number instead of pausing mid-number
         s = re.sub(r"(?<=\d),(?=\d)", "", s)
+        # Strip straight quotes used as quotation marks around words or terms
+        # (e.g. 'constructive perception' -> constructive perception) while
+        # preserving apostrophes inside contractions (you're, don't, doesn't).
+        s = re.sub(r"(?<!\w)'|'(?!\w)", "", s)
         # Collapse punctuation clusters to a single mark ("hero?$,." -> "hero?")
         s = re.sub(r"([.,!?\-$%])[.,!?\-$%]+", r"\1", s)
         # A dollar sign is only meaningful directly before a number
@@ -182,6 +205,19 @@ class ContentGenerator(BaseAIService):
         # Remove trailing commas or artifacts before punctuation
         s = re.sub(r"\s*,\s*([.!?])", r"\1", s)
         return s
+
+    def _repair_split_artifacts(self, text):
+        """Merge broken sentence splits left by grammar-constrained output.
+
+        If an array item is truncated mid-thought (e.g. \"...across the\") and the
+        next item continues (\"space, where...\"), the auto-punctuation step produces
+        \"the. space\" - a period followed by a lowercase word is never a real sentence
+        boundary in cleaned narration, so merge it back. This also fixes lowercase
+        sentence starts like \"ago. and scattered\".
+        """
+        if not text:
+            return text
+        return re.sub(r"\.\s+([a-z])", r" \1", text)
 
     def parse_content(self, response):
         if not response:
@@ -213,7 +249,7 @@ class ContentGenerator(BaseAIService):
                 if s[-1] not in ".!?":
                     s += "."
                 cleaned_sentences.append(s)
-            narration = " ".join(cleaned_sentences).strip()
+            narration = self._repair_split_artifacts(" ".join(cleaned_sentences).strip())
         else:
             narration = self._clean_tts_text(str(data.get("narration", "")))
         visuals = data.get("visuals", [])
