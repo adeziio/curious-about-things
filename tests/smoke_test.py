@@ -9,7 +9,7 @@ from core.config_loader import ConfigLoader
 from ai.content_generator import ContentGenerator, write_content_files, read_content_file
 from production.captions import build_caption_cues, write_srt
 from production.footage.manager import create_video_provider
-from production.footage.pexels import PexelsVideoProvider, MP4_URL_PATTERN
+from production.footage.pexels import PexelsVideoProvider
 from production.composer import Composer
 
 config = ConfigLoader().load_all()
@@ -79,10 +79,9 @@ print(f"4. captions OK ({len(cues)} cues)")
 provider = create_video_provider(config, notify=lambda m: None)
 assert isinstance(provider, PexelsVideoProvider)
 assert provider.slugify("person scrolling phone in bed!") == "person-scrolling-phone-in-bed"
-page = 'div><a href="https://www.pexels.com/video/x/">x</a><source src="https://videos.pexels.com/video-files/856973/856973-hd_1080_1920_25fps.mp4?auto=compress" type="video/mp4"><source src="https://videos.pexels.com/video-files/999/999-hd_1920_1080_30fps.mp4">'
-urls = provider._extract_video_urls(page, 5)
-assert urls[0].endswith("25fps.mp4?auto=compress"), urls  # vertical first
-assert len(urls) == 2
+assert provider._clip_id("https://videos.pexels.com/video-files/856973/856973-hd_1080_1920_25fps.mp4") == "856973"
+assert provider._clip_id("https://example.com/no-id-here") == ""
+print("5. provider factory + helpers OK")
 print("5. provider factory + URL extraction OK")
 
 # Composer end-to-end with synthetic footage (landscape -> must be cropped/scaled)
@@ -118,12 +117,17 @@ narration = {
 }
 
 composer = Composer(config)
-out = composer.compose(tmp, narration, cues, [str(footage_dir / "clip_001.mp4"), str(footage2)], segment_count=3)
+out = composer.compose(
+    tmp, narration, cues,
+    [[str(footage_dir / "clip_001.mp4")], [str(footage2)]],
+    visuals=[{"search_query": "cat"}, {"search_query": "office"}],
+    segment_count=3,
+)
 print("6. composer OK:", out)
 
 # Verify the rendered video exists and is non-empty
-assert out["video_path"]
-video_path = Path(out["video_path"])
+assert out
+video_path = Path(out)
 assert video_path.exists(), "rendered video missing"
 assert video_path.stat().st_size > 1024, "rendered video too small"
 print("7. rendered video OK:", video_path.stat().st_size, "bytes")

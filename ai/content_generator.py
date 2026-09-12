@@ -35,6 +35,9 @@ NARRATION_SCHEMA = {
         # mapping on a ~1-minute short (14 clips × ~4 s each ≈ 56 s of
         # footage, fitting the 58 s target). Keeps narration and visuals
         # aligned so a 14-sentence script always has a matching visual.
+        # Each visual has ONLY a search_query — no context field. The visuals
+        # array is ordered to match the narration sentence order, so sentence N
+        # always maps to visual N (and its downloaded clips).
         "visuals": {
             "type": "array",
             "minItems": 14,
@@ -42,10 +45,9 @@ NARRATION_SCHEMA = {
             "items": {
                 "type": "object",
                 "properties": {
-                    "context": {"type": "string"},
                     "search_query": {"type": "string"},
                 },
-                "required": ["context", "search_query"],
+                "required": ["search_query"],
             },
         },
     },
@@ -136,14 +138,14 @@ class ContentGenerator(BaseAIService):
             'into its 14 sentences. Each string is one complete spoken sentence of 9-13 words. '
             'Plain spoken text, no stage directions, no sound cues, no speaker labels.\n'
             '- "mood": 1-3 lowercase words describing the emotional tone. IMPORTANT: Choose mood words that match the story energy. Use words like: dramatic, tense, epic, mysterious, curious, dark, suspense, scary, horror, action, funny, comedy, playful, energetic, exciting, calm, peaceful, relaxing, chill, soft, gentle, warm, cozy, romantic, nostalgic, dreamy, sad, melancholic, happy, uplifting, inspiring.\\n'
-            '- "visuals": EXACTLY 14 objects — one per narration sentence, so the whole script has a matching visual. Each {"context": "which part of the narration this footage supports", "search_query": "stock footage search phrase"}. Give every sentence a visual; do not reuse the same visual twice.\\n'
+            '- "visuals": EXACTLY 14 objects — one per narration sentence, so the whole script has a matching visual. Each object has exactly one field: {"search_query": "stock footage search phrase"}. The visuals array is in the same order as the narration sentences, so sentence 1 matches visual 1, sentence 2 matches visual 2, and so on. Give every sentence a visual; do not reuse the same visual twice.\\n'
             "FINAL CHECK BEFORE ANSWERING\n"
             "1. narration_sentences contains exactly 14 complete sentences.\n"
             "2. Each sentence should be 9-13 words. Total narration should be around 160-190 words (approximately 1 minute of spoken content at a natural pace).\n"
             "3. The visuals array contains exactly 14 search queries — one per narration sentence, covering the entire narration.\n"
             "4. Every sentence carries real, verified information - no filler.\n"
             "5. Every narration sentence is a complete, natural English sentence with correct spelling, apostrophes, punctuation, and spacing - no broken splits like 'cells. the bricks' or 'process. called', and no awkward boundaries from the 14-sentence split.\n"
-            "6. Every visual object has a valid, complete context value from the beat words (hook, setup, escalation, reveal, twist, closing) - never truncated values like 'escal,'.\n"
+            "6. Every visual object contains exactly one field, search_query, with a practical Pexels search phrase - no extra fields, no context field.\n"
             "7. The topic belongs to exactly one randomly selected category from the list - an even random draw, not the easiest category, not based on any prior episode.\n"
             "8. Each narration_sentences item is EXACTLY ONE complete sentence: one capital start, one terminal punctuation mark, never two statements fused without punctuation (WRONG: 'It's not a glitch it's how we perceive the world'), never one thought split across two items, never quoted terms (WRONG: 'constructive perception').\n"
         )
@@ -272,18 +274,21 @@ class ContentGenerator(BaseAIService):
             title = (first[:80] + "...") if len(first) > 80 else first
         if not isinstance(visuals, list):
             visuals = []
+        # Match each visual with its corresponding narration sentence by index.
+        legacy_sentences = re.split(r"(?<=[.!?])\s+", narration)
         cleaned_visuals = []
-        for visual in visuals:
+        for i, visual in enumerate(visuals):
             if not isinstance(visual, dict):
                 continue
-            context = str(visual.get("context", "")).strip()
             search_query = str(visual.get("search_query", "")).strip()
             if not search_query:
                 continue
-            cleaned_visuals.append({"context": context, "search_query": search_query})
+            entry = {"search_query": search_query}
+            if i < len(legacy_sentences):
+                entry["sentence"] = legacy_sentences[i].strip()
+            cleaned_visuals.append(entry)
         if not summary:
-            sentences = re.split(r"(?<=[.!?])\s+", narration)
-            summary = sentences[0].strip() if sentences else ""
+            summary = legacy_sentences[0].strip() if legacy_sentences else ""
         mood = str(data.get("mood", "")).strip()
         return {"title": title, "summary": summary, "narration": narration, "mood": mood, "visuals": cleaned_visuals}
 
@@ -307,15 +312,24 @@ class ContentGenerator(BaseAIService):
             raise ContentGenerationError("The AI did not return a narration.")
         if not isinstance(visuals, list):
             visuals = []
+        # Preserve the sentence field that parse_content already attached
+        # to each visual. parse_content matches visuals to sentences by index
+        # (visuals[N] ↔ narration_sentences[N]), so the sentence is already
+        # correct. We must carry it into the cleaned list instead of building
+        # a new list from scratch (which would drop it).
         cleaned_visuals = []
         for visual in visuals:
             if not isinstance(visual, dict):
                 continue
-            context = str(visual.get("context", "")).strip()
             search_query = str(visual.get("search_query", "")).strip()
             if not search_query:
                 continue
-            cleaned_visuals.append({"context": context, "search_query": search_query})
+            entry = {"search_query": search_query}
+            # Carry forward the sentence that parse_content attached.
+            sentence = visual.get("sentence")
+            if sentence and str(sentence).strip():
+                entry["sentence"] = str(sentence).strip()
+            cleaned_visuals.append(entry)
         if len(cleaned_visuals) < 2:
             raise ContentGenerationError("The AI returned too few usable visual search queries.")
 

@@ -101,23 +101,41 @@ class Composer:
         episode_directory,
         narration,
         cues,
-        footage_paths,
-        segment_count=None
+        footage_groups,
+        visuals=None,
+        segment_count=None,
+        sentence_durations=None,
     ):
 
         """
         Renders episode.mp4 into the episode directory.
 
-        narration : result dict from production.narration
-        cues      : caption cues from production.captions
-        footage_paths : downloaded footage files
-        segment_count : how many visual segments the timeline
-                        should be split into (defaults to the
-                        number of downloaded footage files)
+        narration      : result dict from production.narration
+        cues           : caption cues from production.captions
+        footage_groups: list of lists of downloaded footage paths, where
+                        footage_groups[N] holds the clips for visual N
+                        (one group per narration sentence). Each group is
+                        cycled through to cover that sentence's duration.
+        visuals        : the visuals list from the content (for segment count
+                        when footage_groups has empty groups).
+        segment_count  : how many visual segments the timeline should be split
+                        into (defaults to len(visuals), then to the total
+                        number of downloaded clips).
+        sentence_durations : optional list of per-sentence durations (seconds)
+                        in sentence order. When provided, each visual segment
+                        matches its sentence's actual spoken duration so the
+                        visuals change in sync with the narration. Long
+                        sentences combine multiple clips; short sentences cut
+                            clips to fit.
         """
 
-        if not footage_paths:
-
+        # Flatten all available clips as a fallback pool.
+        all_clips = [
+            p
+            for group in footage_groups
+            for p in group
+        ]
+        if not all_clips:
             raise CompositionError(
                 "No stock footage was downloaded, so the "
                 "video cannot be composed."
@@ -184,11 +202,13 @@ class Composer:
 
             frame_clips = (
                 self._build_frame_clips(
-                    footage_paths,
+                    footage_groups,
                     video_duration,
                     width,
                     height,
-                    segment_count
+                    segment_count,
+                    visuals=visuals,
+                    sentence_durations=sentence_durations,
                 )
             )
 
@@ -283,57 +303,127 @@ class Composer:
             pass
     def _build_frame_clips(
         self,
-        footage_paths,
+        footage_groups,
         video_duration,
         width,
         height,
-        segment_count
+        segment_count,
+        visuals=None,
+        sentence_durations=None,
     ):
+
+        # footage_groups: list of lists where footage_groups[i] holds
+        # the downloaded clip paths for visuals[i] (one group per
+        # narration sentence / visual query). The timeline is split
+        # into segment_count pieces; segment i draws its clips from
+        # group (i % len(footage_groups)) so every narration sentence
+        # keeps getting its own matched footage even when the same
+        # query has to cover multiple segments.
 
         if segment_count is None or segment_count < 1:
 
-            segment_count = len(
-                footage_paths
-            )
+            if visuals:
+                segment_count = len(visuals)
+            else:
+                segment_count = sum(
+                    len(g) for g in footage_groups
+                )
 
+        total_clips = sum(len(g) for g in footage_groups)
         segment_count = min(
             segment_count,
-            len(
-                footage_paths
-            )
-            * 4
+            max(total_clips, 1) * 4,
         )
 
-        segment_duration = (
-            video_duration
-            / segment_count
+        num_groups = len(footage_groups)
+
+        if num_groups == 0:
+            raise CompositionError(
+                "No footage groups were supplied, so the video "
+                "cannot be composed."
+            )
+
+        # Fallback pool: first non-empty group, or (defensively) a
+        # single None that will fail loudly downstream rather than
+        # silently compositing nothing.
+        fallback_pool = []
+        for g in footage_groups:
+            if g:
+                fallback_pool = g
+                break
+        if not fallback_pool:
+            fallback_pool = [None]
+
+        # When sentence_durations is provided, build segment boundaries
+        # that match the actual narration pacing: each sentence gets a
+        # segment whose duration equals its spoken length. This keeps
+        # visuals in sync with what is being said. Long sentences
+        # combine multiple clips from their group; short sentences cut
+        # a clip to fit.
+        use_sentence_timing = (
+            sentence_durations
+            and len(sentence_durations) == num_groups
+            and sum(sentence_durations) > 0
         )
+
+        if use_sentence_timing:
+            # Normalise sentence durations to fit video_duration.
+            total_sentence_time = sum(sentence_durations)
+            scale = video_duration / total_sentence_time if total_sentence_time > 0 else 1.0
+            segment_starts = [0.0]
+            scaled_durations = []
+            for dur in sentence_durations:
+                scaled = dur * scale
+                scaled_durations.append(scaled)
+                segment_starts.append(segment_starts[-1] + scaled)
+            # Use per-sentence segments instead of the even-split count.
+            effective_segment_count = len(scaled_durations)
+            segment_duration = None  # not used in sentence-timing mode
+        else:
+            segment_duration = video_duration / segment_count
+            effective_segment_count = segment_count
+            scaled_durations = None
+            segment_starts = None
+
+        # Track per-group clip consumption so each query's clips are
+        # cycled independently instead of one global index across all
+        # groups.
+        group_counters = [0] * num_groups
 
         frame_clips = []
 
-        for index in range(
-            segment_count
-        ):
+        for index in range(effective_segment_count):
 
-            start = (
-                index
-                * segment_duration
-            )
-
-            needed = min(
-                segment_duration,
-                video_duration - start
-            )
+            if use_sentence_timing:
+                start = segment_starts[index]
+                needed = min(
+                    scaled_durations[index],
+                    video_duration - start
+                )
+            else:
+                start = index * segment_duration
+                needed = min(
+                    segment_duration,
+                    video_duration - start
+                )
 
             if needed <= 0:
 
                 break
 
-            source_path = (
-                footage_paths[
-                    index % len(footage_paths)
-                ]
+            group_idx = index % num_groups
+            pool = footage_groups[group_idx]
+
+            if not pool:
+                pool = fallback_pool
+
+            clip_index = (
+                group_counters[group_idx]
+                % len(pool)
             )
+            group_counters[group_idx] += 1
+
+            source_path = pool[clip_index]
 
             clip = VideoFileClip(
                 str(

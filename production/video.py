@@ -292,10 +292,10 @@ class ProductionPipeline:
             "Searching for stock footage..."
         )
 
-        footage_paths = (
+        footage_groups = (
             self._collect_footage(
                 episode_directory,
-                visuals
+                visuals,
             )
         )
 
@@ -361,6 +361,16 @@ class ProductionPipeline:
             "Composing the final video..."
         )
 
+        # Compute per-sentence durations from the word timings so the
+        # composer can align visual segments with what the narration is
+        # actually saying. Each sentence gets a segment whose length
+        # matches its spoken duration, and clips from that sentence's
+        # visual group are combined (long sentence) or cut (short
+        # sentence) to fit — keeping visuals and narration in sync.
+        sentence_durations = self._compute_sentence_durations(
+            words, content
+        )
+
         try:
 
             output_path = (
@@ -368,12 +378,14 @@ class ProductionPipeline:
                     episode_directory,
                     narration,
                     word_cues,
-                    [str(path) for path in footage_paths],
+                    footage_groups,
+                    visuals=visuals,
                     segment_count=len(
                         visuals
                     )
                     if visuals
-                    else None
+                    else None,
+                    sentence_durations=sentence_durations,
                 )
             )
 
@@ -405,13 +417,12 @@ class ProductionPipeline:
     def _collect_footage(
         self,
         episode_directory,
-        visuals
+        visuals,
     ):
 
         footage_directory = (
             episode_directory
-            /
-            "footage"
+            / "footage"
         )
 
         provider = (
@@ -420,133 +431,90 @@ class ProductionPipeline:
                 notify=(
                     lambda message:
                     self.update_progress(
-                        query_percent[
-                            "value"
-                        ],
-                        message
+                        query_percent["value"],
+                        message,
                     )
-                )
+                ),
             )
         )
 
-        # The provider messages report the percent of the query
-        # currently being processed; update_progress clamps any
-        # regression so the bar stays monotonic.
-
-        query_percent = {
-            "value": 15
-        }
-
-        query_percent = {
-            "value": 15
-        }
+        query_percent = {"value": 15}
 
         candidates_per_query = int(
             self._provider_setting(
                 "candidates_per_query",
-                3
+                3,
             )
         )
 
-        all_paths = []
-
+        # One sublist per visual query, in the same order as `visuals`.
+        # Each sublist holds the downloaded clip paths for that query.
+        footage_groups = []
         failed_queries = []
+        total_queries = len(visuals)
+        # Track Pexels video IDs already downloaded this episode so
+        # different search queries do not produce duplicate clips.
+        downloaded_ids = set()
 
-        for index, visual in enumerate(
-            visuals,
-            start=1
-        ):
-
-            query = str(
-                visual.get(
-                    "search_query",
-                    ""
-                )
-            ).strip()
+        for index, visual in enumerate(visuals, start=1):
+            query = str(visual.get("search_query", "")).strip()
 
             if not query:
-
+                footage_groups.append([])
                 continue
 
             self.update_progress(
                 self._progress_between(
-                    20,
-                    58,
-                    index - 1,
-                    len(
-                        visuals
-                    )
+                    20, 58, index - 1, total_queries
                 ),
-                f"Footage {index}/{len(visuals)}: {query}"
+                f"Footage {index}/{total_queries}: {query}",
             )
 
-            query_percent[
-                "value"
-            ] = self._progress_between(
-                20,
-                58,
-                index - 1,
-                len(
-                    visuals
-                )
+            query_percent["value"] = self._progress_between(
+                20, 58, index - 1, total_queries
             )
 
             query_directory = (
                 footage_directory
-                /
-                provider.slugify(
-                    query
-                )
+                / provider.slugify(query)
             )
 
             try:
-
                 downloaded = provider.fetch(
                     query,
                     query_directory,
-                    max_videos=candidates_per_query
+                    max_videos=candidates_per_query,
+                    downloaded_ids=downloaded_ids,
                 )
-
             except Exception as error:
-
-                # A single failed query must not kill the
-                # whole episode - as long as some footage
-                # was collected, the pipeline continues.
-
                 self.update_progress(
                     40,
                     f"Footage search failed for "
-                    f"'{query}': {error}"
+                    f"'{query}': {error}",
                 )
-
-                failed_queries.append(
-                    query
-                )
-
+                failed_queries.append(query)
+                footage_groups.append([])
                 continue
 
-            all_paths.extend(
-                downloaded
-            )
+            footage_groups.append(list(downloaded))
 
-        if not all_paths:
+        total_available = sum(len(g) for g in footage_groups)
 
+        if total_available == 0:
             raise VideoProviderError(
                 "No stock footage could be downloaded "
                 "for any visual search query."
             )
 
         if failed_queries:
-
             self.update_progress(
                 45,
                 f"Some footage searches failed "
-                f"({len(failed_queries)}/"
-                f"{len(visuals)}); continuing with the "
-                "clips that were downloaded."
+                f"({len(failed_queries)}/{total_queries}); "
+                f"continuing with the clips that were downloaded.",
             )
 
-        return all_paths
+        return footage_groups
 
     def _collect_music(
         self,
@@ -722,6 +690,60 @@ class ProductionPipeline:
         except Exception:
 
             pass
+
+    def _compute_sentence_durations(self, words, content):
+        """
+        Computes the spoken duration of each narration sentence by
+        partitioning word timings based on each sentence's word count.
+        Returns a list of durations (seconds) in sentence order.
+        Falls back to even distribution when mapping cannot be done.
+        """
+        if not words:
+            return []
+
+        narration_sentences = []
+        if isinstance(content, dict):
+            narration_sentences = content.get("narration_sentences", [])
+        if not narration_sentences:
+            return []
+
+        total_duration = float(words[-1].get("end", 0.0)) if words else 0.0
+        if total_duration <= 0:
+            return []
+
+        # Count words per sentence. edge-tts splits on whitespace, so we
+        # use the same rule here to get a matching word count per sentence.
+        sentence_word_counts = []
+        for s in narration_sentences:
+            sentence_word_counts.append(len(str(s).split()))
+
+        # Partition the word timings by sentence. Words are in order, so
+        # the first N words belong to sentence 0, the next M to sentence 1,
+        # etc. Sentence duration = last word end - first word start.
+        durations = []
+        word_idx = 0
+        for count in sentence_word_counts:
+            if count <= 0 or word_idx >= len(words):
+                durations.append(0.0)
+                continue
+            start_time = float(words[word_idx].get("start", 0.0))
+            end_idx = min(word_idx + count, len(words)) - 1
+            end_time = float(words[end_idx].get("end", 0.0))
+            durations.append(max(0.0, end_time - start_time))
+            word_idx += count
+
+        # Assign any remaining words to the last sentence.
+        if word_idx < len(words) and durations:
+            extra_end = float(words[-1].get("end", 0.0))
+            last_start = float(words[word_idx].get("start", 0.0)) if word_idx < len(words) else 0.0
+            durations[-1] = max(durations[-1], extra_end - last_start)
+
+        # If all zero, fall back to even distribution.
+        if not durations or sum(durations) <= 0:
+            per_sentence = total_duration / len(narration_sentences)
+            return [per_sentence] * len(narration_sentences)
+
+        return durations
 
     def _provider_setting(
         self,

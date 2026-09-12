@@ -8,9 +8,10 @@
     "debugging_address": "127.0.0.1:9222",
     "profile_directory": "media/browser_profile/pexels",
 
-    "candidates_per_query": 3,
+    "candidates_per_query": 2,
     "min_candidates_per_query": 1,
     "orientation": "vertical",
+    "resolution_name": "4K",
 
     "page_timeout_seconds": 60,
     "download_timeout_seconds": 300,
