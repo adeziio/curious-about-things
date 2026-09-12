@@ -40,6 +40,10 @@ FONT_CANDIDATES = [
     "/System/Library/Fonts/Supplemental/Arial.ttf"
 ]
 
+# Below this per-clip share (seconds), a sentence is not split across
+# multiple clips - a single clip is clearer than sub-second cuts.
+MIN_CLIP_SHARE = 1.0
+
 
 class Composer:
 
@@ -417,72 +421,87 @@ class Composer:
             if not pool:
                 pool = fallback_pool
 
-            clip_index = (
-                group_counters[group_idx]
-                % len(pool)
-            )
-            group_counters[group_idx] += 1
+            # Use every downloaded clip from this query's group: the
+            # segment is divided equally across the group's clips so
+            # both clips per query contribute to the sentence (each
+            # clip is at least 5s, so two clips comfortably cover any
+            # sentence). Very short segments keep a single clip to
+            # avoid sub-second cuts.
+            usable_count = len(pool)
+            if needed / usable_count < MIN_CLIP_SHARE:
+                usable_count = 1
 
-            source_path = pool[clip_index]
+            share = needed / usable_count
 
-            clip = VideoFileClip(
-                str(
-                    source_path
+            for _ in range(usable_count):
+
+                clip_index = (
+                    group_counters[group_idx]
+                    % len(pool)
                 )
-            )
+                group_counters[group_idx] += 1
 
-            self._opened_sources.append(
-                clip
-            )
+                source_path = pool[clip_index]
 
-            try:
-
-                if clip.duration > needed + 0.05:
-
-                    clip = clip.subclipped(
-                        0,
-                        needed
-                    )
-
-                elif clip.duration < needed - 0.05:
-
-                    clip = clip.with_effects(
-                        [
-                            vfx.Loop(
-                                duration=needed
-                            )
-                        ]
-                    )
-
-                clip = (
-                    self._fit_to_frame(
-                        clip,
-                        width,
-                        height
+                clip = VideoFileClip(
+                    str(
+                        source_path
                     )
                 )
 
-                clip = (
-                    clip.without_audio()
-                    .with_start(
-                        start
-                    )
-                    .with_duration(
-                        needed
-                    )
-                )
-
-                frame_clips.append(
+                self._opened_sources.append(
                     clip
                 )
 
-            except Exception:
+                try:
 
-                self._close(
-                    clip
-                )
+                    if clip.duration > share + 0.05:
 
-                raise
+                        clip = clip.subclipped(
+                            0,
+                            share
+                        )
+
+                    elif clip.duration < share - 0.05:
+
+                        clip = clip.with_effects(
+                            [
+                                vfx.Loop(
+                                    duration=share
+                                )
+                            ]
+                        )
+
+                    clip = (
+                        self._fit_to_frame(
+                            clip,
+                            width,
+                            height
+                        )
+                    )
+
+                    clip = (
+                        clip.without_audio()
+                        .with_start(
+                            start
+                        )
+                        .with_duration(
+                            share
+                        )
+                    )
+
+                    frame_clips.append(
+                        clip
+                    )
+
+                except Exception:
+                    self._close(
+                        clip
+                    )
+
+                    raise
+
+                start += share
 
         if not frame_clips:
 

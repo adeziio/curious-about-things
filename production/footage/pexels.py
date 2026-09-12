@@ -111,6 +111,9 @@ class PexelsVideoProvider(VideoProvider):
                 )
                 webdriver.ActionChains(driver).move_to_element(card).perform()
                 self.notify("Hovered video card")
+                # Human beat: let the hover-revealed Download button
+                # settle and avoid machine-gun-fast movements.
+                self._human_pause()
                 before = self._snapshot_downloads(destination_dir)
                 self._click_card_download(card, driver)
                 new_file = self._wait_for_new_file(destination_dir, before)
