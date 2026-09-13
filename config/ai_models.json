@@ -1,8 +1,6 @@
 {
     "models": {
         "language_model": {
-            "enabled": true,
-            "provider": "ollama",
             "model": "qwen3:8b",
             "thinking": false,
             "timeout": 900,

@@ -9,7 +9,6 @@
     "profile_directory": "media/browser_profile/pexels",
 
     "candidates_per_query": 2,
-    "min_candidates_per_query": 1,
     "orientation": "vertical",
     "resolution_name": "4K",
 

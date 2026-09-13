@@ -143,8 +143,8 @@ class ContentGenerator(BaseAIService):
             "\n\nVISUAL SEARCH QUERY RULES\n" + visual_rules +
             "\n\nCREATIVE DIRECTION\n" + creative_directions +
             "\n\nOUTPUT FORMAT\nReturn a single JSON object with exactly these fields:\n"
-            '- "title": a short, clickable video title.\n'
-            '- "summary": a one-sentence teaser of the episode.\n'
+            '- "title": a short, clickable video title. Must be a properly punctuated phrase with correct capitalization, spacing, and any necessary punctuation (apostrophes, commas, periods). No run-on fragments or missing punctuation.\n'
+            '- "summary": a one-sentence teaser of the episode. Must be a single, complete, properly punctuated sentence with correct capitalization, spacing, and terminal punctuation. No run-on sentences or missing punctuation between clauses.\n'
             '- "narration_sentences": an array of EXACTLY 14 strings - the narration split '
             f'into its 14 sentences. Each string is one complete spoken sentence of {wps_min}-{wps_max} words. '
             'Plain spoken text, no stage directions, no sound cues, no speaker labels.\n'
@@ -159,6 +159,7 @@ class ContentGenerator(BaseAIService):
             "6. Every visual object contains exactly one field, search_query, with a practical Pexels search phrase - no extra fields, no context field.\n"
             "7. The topic belongs to exactly one randomly selected category from the list - an even random draw, not the easiest category, not based on any prior episode.\n"
             "8. Each narration_sentences item is EXACTLY ONE complete sentence: one capital start, one terminal punctuation mark, never two statements fused without punctuation (WRONG: 'It's not a glitch it's how we perceive the world'), never one thought split across two items, never quoted terms (WRONG: 'constructive perception').\n"
+            "9. The title and summary are properly punctuated: correct capitalization, spacing, apostrophes, and terminal punctuation. The summary must be exactly one complete sentence - no run-on sentences, no missing punctuation between clauses (WRONG: 'Your hands do more than you realize here's how they shape your world' -> CORRECT: 'Your hands do more than you realize. Here's how they shape your world.').\n"
         )
 
     def generate(self, instruction=None):

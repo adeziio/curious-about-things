@@ -3,13 +3,11 @@
     "music_provider": "freesafemusic",
     "shorts": {
         "target_duration_seconds": 50,
-        "aspect_ratio": "9:16",
         "resolution": {
             "width": 1080,
             "height": 1920
         },
-        "fps": 30,
-        "format": "mp4"
+        "fps": 30
     },
     "audio": {
         "narration": {
