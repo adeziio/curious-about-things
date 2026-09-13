@@ -24,7 +24,7 @@ NARRATION_SCHEMA = {
             # what caused the "the. space" mid-thought truncation in episode 001
             # (a ~93-char sentence was forced to stop at the 75-char boundary, so
             # the rest spilled into the next array item and got auto-punctuated).
-            # The real length control is the prompt's 10-13-word blueprint plus the
+            # The real length control is the prompt's per-sentence word blueprint plus the
             # 14-item count; minLength: 30 (~5 words) is only an empty/tiny-string
             # floor, not a truncation bound. _repair_split_artifacts + final check #8
             # are the safety net if a sentence still splits across two items.
@@ -32,8 +32,8 @@ NARRATION_SCHEMA = {
         },
         "mood": {"type": "string"},
         # Exactly 14 visuals, one per narration sentence, for a clean 1:1
-        # mapping on a ~1-minute short (14 clips × ~4 s each ≈ 56 s of
-        # footage, fitting the 58 s target). Keeps narration and visuals
+        # mapping sized by app.shorts.target_duration_seconds (14 clips
+        # cycling across the narration timeline). Keeps narration and visuals
         # aligned so a 14-sentence script always has a matching visual.
         # Each visual has ONLY a search_query — no context field. The visuals
         # array is ordered to match the narration sentence order, so sentence N
@@ -76,10 +76,21 @@ class ContentGenerator(BaseAIService):
         narration_rules = self.format_bullets(c.get("narration_rules", []))
         visual_rules = self.format_bullets(c.get("visual_rules", []))
         creative_directions = self.format_bullets(c.get("creative_directions", []))
-        target_seconds = c.get("narration_target_seconds", 58)
-        wps = c.get("words_per_second", 2.9)
-        word_min = int(53 * wps)
+        # Duration is config-driven from app.shorts.target_duration_seconds;
+        # everything below derives from that single source of truth so that
+        # no duration or word count is ever hardcoded.
+        shorts = self.config.get("app", {}).get("shorts", {})
+        target_seconds = float(shorts.get("target_duration_seconds", 58))
+        wps = float(c.get("words_per_second", 2.9))
         word_target = int(target_seconds * wps)
+        word_min = int(word_target * 0.85)
+        word_max = int(word_target * 1.15)
+        per_sentence = word_target // 14
+        wps_min = max(9, per_sentence - 1)
+        wps_max = per_sentence + 3
+        target_seconds_str = str(int(target_seconds))
+        narration_rules = narration_rules.replace("{{TARGET_SECONDS}}", target_seconds_str)
+        visual_rules = visual_rules.replace("{{TARGET_SECONDS}}", target_seconds_str)
         instruction = str(instruction or "").strip()
         instruction_section = ""
         if instruction:
@@ -92,17 +103,17 @@ class ContentGenerator(BaseAIService):
         # counts, and must be stopped from stacking tiny fragments.
         length_requirement = (
             "ABSOLUTE REQUIREMENT - NARRATION LENGTH\n"
-            "Write the narration as EXACTLY 14 complete sentences, each sentence 10-13 words "
-            "long, totaling 170-190 words. Never write strings of short fragments - every sentence "
-            "must be a full, substantial spoken thought. A script outside 150-210 words is a FAILED response. "
+            f"Write the narration as EXACTLY 14 complete sentences, each sentence {wps_min}-{wps_max} words "
+            f"long, totaling {word_min}-{word_max} words. Never write strings of short fragments - every sentence "
+            f"must be a full, substantial spoken thought. A script outside {word_min}-{word_max} words is a FAILED response. "
             "Follow this blueprint exactly:\n"
-            "- Sentence 1: the hook - a surprising claim or vivid moment (10-13 words).\n"
-            "- Sentences 2-3: the setup - establish the situation so the viewer cares (10-13 words each).\n"
-            "- Sentences 4-10: escalation - at least 4 different verified facts, each fully "
-            "developed in its own sentence, with detail that deepens the intrigue (10-13 words each).\n"
-            "- Sentences 11-12: the surprising reveal and the connection to the viewer (10-13 words each).\n"
-            "- Sentence 13: the twist - a memorable observation or unexpected angle (10-13 words).\n"
-            "- Sentence 14: the closing - a satisfying final thought or a natural curiosity question (10-13 words).\n"
+            f"- Sentence 1: the hook - a surprising claim or vivid moment ({wps_min}-{wps_max} words).\n"
+            f"- Sentences 2-3: the setup - establish the situation so the viewer cares ({wps_min}-{wps_max} words each).\n"
+            f"- Sentences 4-10: escalation - at least 4 different verified facts, each fully "
+            f"developed in its own sentence, with detail that deepens the intrigue ({wps_min}-{wps_max} words each).\n"
+            f"- Sentences 11-12: the surprising reveal and the connection to the viewer ({wps_min}-{wps_max} words each).\n"
+            f"- Sentence 13: the twist - a memorable observation or unexpected angle ({wps_min}-{wps_max} words).\n"
+            f"- Sentence 14: the closing - a satisfying final thought or a natural curiosity question ({wps_min}-{wps_max} words).\n"
         )
         topic_selection = (
             "RANDOM CATEGORY DRAW (MANDATORY STEP 1)\\n"
@@ -135,13 +146,13 @@ class ContentGenerator(BaseAIService):
             '- "title": a short, clickable video title.\n'
             '- "summary": a one-sentence teaser of the episode.\n'
             '- "narration_sentences": an array of EXACTLY 14 strings - the narration split '
-            'into its 14 sentences. Each string is one complete spoken sentence of 9-13 words. '
+            f'into its 14 sentences. Each string is one complete spoken sentence of {wps_min}-{wps_max} words. '
             'Plain spoken text, no stage directions, no sound cues, no speaker labels.\n'
             '- "mood": 1-3 lowercase words describing the emotional tone. IMPORTANT: Choose mood words that match the story energy. Use words like: dramatic, tense, epic, mysterious, curious, dark, suspense, scary, horror, action, funny, comedy, playful, energetic, exciting, calm, peaceful, relaxing, chill, soft, gentle, warm, cozy, romantic, nostalgic, dreamy, sad, melancholic, happy, uplifting, inspiring.\\n'
             '- "visuals": EXACTLY 14 objects — one per narration sentence, so the whole script has a matching visual. Each object has exactly one field: {"search_query": "stock footage search phrase"}. The visuals array is in the same order as the narration sentences, so sentence 1 matches visual 1, sentence 2 matches visual 2, and so on. Give every sentence a visual; do not reuse the same visual twice.\\n'
             "FINAL CHECK BEFORE ANSWERING\n"
             "1. narration_sentences contains exactly 14 complete sentences.\n"
-            "2. Each sentence should be 9-13 words. Total narration should be around 160-190 words (approximately 1 minute of spoken content at a natural pace).\n"
+            f"2. Each sentence should be {wps_min}-{wps_max} words. Total narration should be around {word_min}-{word_max} words (approximately {target_seconds_str} seconds of spoken content at a natural pace).\n"
             "3. The visuals array contains exactly 14 search queries — one per narration sentence, covering the entire narration.\n"
             "4. Every sentence carries real, verified information - no filler.\n"
             "5. Every narration sentence is a complete, natural English sentence with correct spelling, apostrophes, punctuation, and spacing - no broken splits like 'cells. the bricks' or 'process. called', and no awkward boundaries from the 14-sentence split.\n"
