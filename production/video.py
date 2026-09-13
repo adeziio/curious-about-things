@@ -252,18 +252,6 @@ class ProductionPipeline:
                 episode_directory
                 /
                 "audio",
-                min_duration=(
-                    self.shorts_config.get(
-                        "min_duration_seconds",
-                        30
-                    )
-                ),
-                max_duration=(
-                    self.shorts_config.get(
-                        "max_duration_seconds",
-                        60
-                    )
-                ),
                 target_duration=(
                     self.shorts_config.get(
                         "target_duration_seconds",

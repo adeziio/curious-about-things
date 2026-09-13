@@ -138,8 +138,6 @@ def generate_narration(
     text,
     audio_config,
     output_directory,
-    min_duration=None,
-    max_duration=None,
     target_duration=None,
     notify=None
 ):
@@ -158,9 +156,10 @@ def generate_narration(
             "voice": "..."
         }
 
-    If the first synthesis lands outside the allowed duration
-    window, the narration is re-synthesized once with an adjusted
-    speaking rate.
+    The narration is synthesized once at its natural pace. There
+    is no hard duration limit and the audio is never trimmed,
+    stretched, or re-synthesized - target_duration is used purely
+    to report how close the narration landed to the target.
     """
 
     def report(
@@ -257,73 +256,16 @@ def generate_narration(
         audio_path
     )
 
-    # Natural pacing first. We NEVER slow the narration down to hit
-    # a duration target - stretching the voice is what produced the
-    # dragged-out, unnatural delivery and the "cut off at one minute"
-    # videos (the stretched audio exceeded the Shorts cap and the
-    # renderer trimmed the ending). If the content is naturally too
-    # short, the video validator catches it instead.
-    #
-    # The only re-synthesis we do is a modest speed-up when the
-    # narration is clearly too long for the Shorts window.
+    # Natural pacing only. The narration is never slowed down,
+    # sped up, or trimmed to fit a duration window - the video
+    # timeline always follows the narration, so nothing can ever
+    # be cut off. target_duration is informational only.
 
-    if (
-        max_duration
-        and target_duration
-        and duration > max_duration + 2
-    ):
+    if target_duration:
 
-        factor = target_duration / duration
-
-        delta = int(
-            round(
-                (1.0 - factor) * 100
-            )
-        )
-
-        # Speed the too-long audio up, but never by more than a
-        # comfortable amount relative to the configured base rate.
-        final_rate = min(
-            base_rate + 8,
-            base_rate + delta
-        )
-
-        if final_rate != base_rate:
-
-            report(
-                "Narration duration "
-                f"{duration:.1f}s exceeds the Shorts window; "
-                f"retrying with rate {final_rate:+d}% "
-                "(natural pacing preserved)."
-            )
-
-            asyncio.run(
-                _synthesize(
-                    text,
-                    voice,
-                    f"{final_rate:+d}%",
-                    pitch,
-                    audio_path,
-                    words_path
-                )
-            )
-
-            duration = _audio_duration(
-                audio_path
-            )
-
-    elif (
-        min_duration
-        and duration < min_duration
-    ):
-
-        # Too short: report it so the caller knows (and so the
-        # video validator's minimum duration can flag the episode)
-        # instead of stretching the voice.
         report(
-            f"Narration duration {duration:.1f}s is below the "
-            f"{min_duration:.1f}s target; the narration script "
-            "itself needs more content."
+            f"Narration duration {duration:.1f}s vs. target "
+            f"{float(target_duration):.1f}s (no limit applied)."
         )
 
     report(

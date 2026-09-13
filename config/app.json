@@ -2,8 +2,6 @@
     "video_provider": "pexels",
     "music_provider": "freesafemusic",
     "shorts": {
-        "min_duration_seconds": 45,
-        "max_duration_seconds": 59,
         "target_duration_seconds": 50,
         "aspect_ratio": "9:16",
         "resolution": {

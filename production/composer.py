@@ -172,25 +172,16 @@ class Composer:
             )
         )
 
-        max_duration = float(
-            self.shorts_config.get(
-                "max_duration_seconds",
-                60
-            )
-        )
-
         narration_duration = float(
             narration["duration"]
         )
 
-        # A short tail after the last spoken word keeps the
-        # ending from feeling cut off, while never exceeding
-        # the Shorts duration limit.
+        # The narration is the primary timeline. The video always
+        # covers the full narration plus a small tail after the
+        # last spoken word, so the ending never feels cut off and
+        # nothing is ever trimmed.
 
-        video_duration = min(
-            narration_duration + 0.5,
-            max_duration
-        )
+        video_duration = narration_duration + 0.5
 
         output_path = (
             Path(
