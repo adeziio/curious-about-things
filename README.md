@@ -9,26 +9,36 @@ else — and the application turns it into a finished vertical Short:
 ```text
 Prompt (optional topic instruction)
   ↓
-AI generates title + narration + visual search queries
+AI generates title + summary + narration + visual search queries
   ↓
-Generate narration audio
-  ↓
-Search/download stock footage
-  ↓
-Select/trim footage
-  ↓
-Add music / optional SFX
-  ↓
-Generate captions
-  ↓
-Compose/render video
-  ↓
-Validate video
+Generate Video (one click)
+  ├─ narration audio with word-level timings
+  ├─ stock footage per visual search query
+  ├─ royalty-free background music
+  ├─ synchronized captions
+  └─ compose & render 1080×1920 @ 30 fps Short
   ↓
 Preview
   ↓
 Upload to YouTube / Instagram
 ```
+
+---
+
+## Screenshots
+
+![App overview — episode workflow](web/screenshots/overview.png)
+
+The Web UI drives the whole pipeline: create an episode, run the video
+job, preview the rendered Short in the episode grid, and publish it.
+
+|                        |                          |
+| ---------------------- | ------------------------ |
+| ![YouTube upload](web/screenshots/youtube.png) | ![Instagram publish](web/screenshots/instagram.png) |
+
+The images above are placeholders. Capture fresh screenshots of the app
+and drop them into `web/screenshots/` — `overview.png`, `instagram.png`,
+and `youtube.png` — and the README picks them up automatically.
 
 ---
 
@@ -93,20 +103,20 @@ Each episode lives in its own numbered directory under `media/output/shorts/`:
 
 ```text
 media/output/shorts/<episode>/
-├── content.json      # Structured AI content (title, narration, visuals)
-├── prompt.txt        # Human-readable TITLE/PROMPT/SUMMARY (upload metadata)
+├── content.json         # Structured AI content (title, summary, narration, mood, visuals)
+├── prompt.txt           # Human-readable TITLE/PROMPT/SUMMARY (upload metadata)
 ├── audio/
-│   ├── narration.mp3 # Generated narration audio
-│   └── words.json    # Word-level timings from the TTS stream
+│   ├── narration.mp3    # Generated narration audio
+│   └── words.json       # Word-level timings from the TTS stream
 ├── footage/
-│   └── <query>/      # Downloaded stock footage per search query
+│   └── <query>/         # Downloaded stock footage per visual search query
 │       └── clip_NNN.mp4
+├── music/               # Downloaded royalty-free background track + license metadata
 ├── captions/
-│   └── captions.srt  # Captions synchronized with the narration
-├── sfx/              # Optional: sound effects mixed into the video
-├── episode.mp4       # Final rendered Short
-├── validation.json   # Duration/resolution/fps validation result
-└── upload.txt        # Per-platform upload flags
+│   └── captions.srt     # Captions synchronized with the narration
+├── sfx/                 # Optional: sound effects mixed into the video
+├── episode.mp4          # Final rendered Short
+└── upload.txt           # Per-platform upload flags (created on first upload)
 ```
 
 Optional SFX: any audio file in the episode's `sfx/` folder is mixed into
@@ -121,8 +131,9 @@ All configuration lives in `config/`:
 
 | File             | Purpose                                                             |
 | ---------------- | ------------------------------------------------------------------- |
-| `app.json`       | `video_provider` selection, Shorts specs (duration, 1080×1920, 30 fps), audio, captions |
+| `app.json`       | `video_provider` / `music_provider` selection, Shorts specs (duration, 1080×1920, 30 fps), audio, captions |
 | `pexels.json`    | All Pexels-specific settings (headless, timeouts, candidates, profile) |
+| `freesafemusic.json` | FreeSafeMusic search/download settings for background music      |
 | `content.json`   | Channel identity and AI content-generation guidance                 |
 | `ai_models.json` | Language model settings (Ollama)                                    |
 | `youtube.json`   | YouTube API settings and metadata defaults                          |
@@ -145,7 +156,7 @@ The active provider is selected with a single generic value:
 
 All provider-specific settings are isolated in a dedicated section
 (`config/pexels.json`), so adding another provider later (e.g. Pixabay)
-means adding one module under `media/footage/` and one config file — the
+means adding one module under `production/footage/` and one config file — the
 rest of the pipeline stays unchanged.
 
 ### Shorts requirements
@@ -153,13 +164,13 @@ rest of the pipeline stays unchanged.
 Configured in `app.json` under `shorts`:
 
 * 9:16, 1080 × 1920, 30 FPS
-* Minimum 30 seconds, maximum 60 seconds
-* Target ≈ 58 seconds of narration
+* Target ≈ 50 seconds of narration
 
-The **actual rendered video is authoritative**. After rendering, the
-pipeline validates duration, resolution, and frame rate, writes
-`validation.json`, and fails the job if the Short falls outside the
-allowed range.
+The **narration is the primary timeline**. The episode is synthesized at
+its natural speaking pace and is never trimmed to fit a time window — the
+video always matches the narration (plus a short tail), so nothing is
+ever cut off. Resolution and frame rate are fixed by the `shorts`
+settings when the video is rendered.
 
 ### AI content structure
 
@@ -169,6 +180,8 @@ The Prompt stage returns structured data the pipeline depends on:
 {
   "title": "...",
   "summary": "...",
+  "mood": "...",
+  "narration_sentences": ["... x14 ..."],
   "narration": "...",
   "visuals": [
     { "context": "...", "search_query": "..." }
@@ -178,27 +191,33 @@ The Prompt stage returns structured data the pipeline depends on:
 
 The narration follows a flexible storytelling arc — hook, setup,
 escalation, surprising reveal, connection, twist, closing thought — and
-targets roughly 58 seconds when spoken. Visual search queries describe
+is generated as exactly 14 sentences targeting roughly 50 seconds when
+spoken. Each sentence maps 1:1 to a visual search query, so the footage
+changes in sync with what is being said. Visual search queries describe
 what should appear in the footage; the application handles finding and
 downloading it.
 
 ### Background music and SFX
 
-Drop royalty-free tracks into `assets/music/` (see the README there). The
-composer loops one track under the narration at a low volume. Narration is
-always clearly audible; music and SFX support it without overpowering it.
+The Generate Video stage downloads a royalty-free background track from
+FreeSafeMusic through the configured `music_provider`; the file is stored
+in the episode's `music/` directory for the render and its license
+metadata is kept afterwards. The composer loops the track under the
+narration at a low volume, and any optional SFX placed in the episode's
+`sfx/` folder is mixed in as well. Narration is always clearly audible;
+music and SFX support it without overpowering it.
 
 ---
 
 ## Project Layout
 
 ```text
-ai/          AI content generation (Prompt stage, Ollama provider)
-core/        Config loading and the top-level pipeline
-media/       Production pipeline: narration, footage providers, captions, composer, validator
-web/         HTTP server, job worker, and the single-page UI
-youtube/     YouTube authentication and upload
-instagram/   Instagram authentication and publishing
-config/      Configuration files
-assets/      User-provided music and SFX
+ai/           AI content generation (Prompt stage, Ollama provider)
+core/         Config loading and the top-level pipeline
+production/   Video production: narration, footage & music providers, captions, composer, render
+web/          HTTP server, job worker, and the single-page UI
+youtube/      YouTube authentication and upload
+instagram/    Instagram authentication and publishing
+config/       Configuration files
+media/        Generated episodes (output/shorts/) and provider browser profile
 ```

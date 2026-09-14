@@ -122,8 +122,10 @@ class ContentGenerator(BaseAIService):
             "Do not use any prior episode, previous title, or history to decide; this is an "
             "independent random draw for this episode only. Give every category a fair chance, "
             "including uncommon ones like Language, Food, Geography, Ancient civilizations, "
-            "Strange inventions, or Weird facts about normal life. Avoid defaulting to Human body "
-            "or Science.\\n"
+            "Strange inventions, or Weird facts about normal life. If the draw lands on Human "
+            "body, Biology, or Science, re-roll once and pick a different category instead — "
+            "recent episodes stayed heavily in that family, so this episode must come from a "
+            "clearly different category.\\n"
             "Then choose the most interesting, surprising fact or angle WITHIN that selected "
             "category - something real that creates a 'wait, what?' reaction. Apply the existing "
             "entertainment -> curiosity -> information direction inside the category.\\n"
@@ -142,7 +144,7 @@ class ContentGenerator(BaseAIService):
             "\n\nNARRATION RULES\n" + narration_rules +
             "\n\nVISUAL SEARCH QUERY RULES\n" + visual_rules +
             "\n\nCREATIVE DIRECTION\n" + creative_directions +
-            "\n\nOUTPUT FORMAT\nReturn a single JSON object with exactly these fields:\n"
+            "\n\nVARIETY REQUIREMENTS (CRITICAL)\n"            "Every episode must feel distinct. Do not fall into repeated templates for topic, title, or opening.\n"            "- TOPIC: Draw a genuinely random category. Do not default to the viewer's own body, biology, or health just because they feel personal - most episodes should be about something OUTSIDE the viewer (animals, space, history, objects, places, ideas, phenomena).\n"            "- TITLE: Never reuse the same title formula. Vary between a question, a bold claim, a How/Why phrase, a surprising statement, a number, or a short intriguing phrase. Banished templates: The Secret Life of..., The Hidden Truth About..., The Untold Story of..., What Happens When..., Everything You Know About... is Wrong.\n"            "- OPENING: The first sentence must not follow a formula. Do NOT open with Your X does more than you realize, You never noticed..., Most people do not know..., or Did you know.... Each hook should land differently - a vivid scene, a counterintuitive claim, a surprising number, a question, a historical moment, a weird comparison.\n"            "- NARRATIVE ARC: Do not force every episode through the same emotional beats. Some should build dread, others wonder, others humor, others awe. Let the topic dictate the arc.\n"            "- MOOD: Choose a mood that fits THIS topic. Do not default to curious mysterious every time.\n"
             '- "title": a short, clickable video title. Must be a properly punctuated phrase with correct capitalization, spacing, and any necessary punctuation (apostrophes, commas, periods). No run-on fragments or missing punctuation.\n'
             '- "summary": a one-sentence teaser of the episode. Must be a single, complete, properly punctuated sentence with correct capitalization, spacing, and terminal punctuation. No run-on sentences or missing punctuation between clauses.\n'
             '- "narration_sentences": an array of EXACTLY 14 strings - the narration split '
@@ -155,11 +157,11 @@ class ContentGenerator(BaseAIService):
             f"2. Each sentence should be {wps_min}-{wps_max} words. Total narration should be around {word_min}-{word_max} words (approximately {target_seconds_str} seconds of spoken content at a natural pace).\n"
             "3. The visuals array contains exactly 14 search queries — one per narration sentence, covering the entire narration.\n"
             "4. Every sentence carries real, verified information - no filler.\n"
-            "5. Every narration sentence is a complete, natural English sentence with correct spelling, apostrophes, punctuation, and spacing - no broken splits like 'cells. the bricks' or 'process. called', and no awkward boundaries from the 14-sentence split.\n"
+            "5. Every narration sentence is a complete, natural English sentence with correct spelling, apostrophes, punctuation, and spacing - no broken splits mid-thought and no awkward boundaries from the 14-sentence split.\n"
             "6. Every visual object contains exactly one field, search_query, with a practical Pexels search phrase - no extra fields, no context field.\n"
-            "7. The topic belongs to exactly one randomly selected category from the list - an even random draw, not the easiest category, not based on any prior episode.\n"
-            "8. Each narration_sentences item is EXACTLY ONE complete sentence: one capital start, one terminal punctuation mark, never two statements fused without punctuation (WRONG: 'It's not a glitch it's how we perceive the world'), never one thought split across two items, never quoted terms (WRONG: 'constructive perception').\n"
-            "9. The title and summary are properly punctuated: correct capitalization, spacing, apostrophes, and terminal punctuation. The summary must be exactly one complete sentence - no run-on sentences, no missing punctuation between clauses (WRONG: 'Your hands do more than you realize here's how they shape your world' -> CORRECT: 'Your hands do more than you realize. Here's how they shape your world.').\n"
+            "7. The topic comes from a uniform random draw of exactly one category from the list, decided BEFORE writing anything - never the easiest or most familiar category, never the category used by the previous episode, and never a topic pulled from an example sentence elsewhere in this prompt. Every listed category must stay equally likely.\n"
+            "8. Each narration_sentences item is EXACTLY ONE complete sentence: one capital start, one terminal punctuation mark, never two statements fused without punctuation, never one thought split across two items, never quoted terms.\n"
+            "9. The title and summary are properly punctuated: correct capitalization, spacing, apostrophes, and terminal punctuation. The summary must be exactly one complete sentence - if it contains more than one independent thought, split them into separate sentences with a period and a capital letter.\n"
         )
 
     def generate(self, instruction=None):
