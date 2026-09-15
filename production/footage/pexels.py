@@ -16,8 +16,6 @@ from dotenv import load_dotenv
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 from production.footage.base import VideoProvider, VideoProviderError
 
@@ -26,6 +24,16 @@ VIDEO_SUFFIXES = (".mp4", ".mov", ".webm", ".mkv", ".avi")
 
 VIDEO_ID_PATTERN = re.compile(r"/video/[^/]*?-(\d+)/?(?:[?#].*)?$", re.IGNORECASE)
 CLIP_ID_PATTERN = re.compile(r"/videos?(?:-files)?/(\d+)", re.IGNORECASE)
+
+# Video page links in the results grid. Pexels sometimes renders the
+# cards with relative hrefs ("/video/...") and sometimes with absolute
+# ones ("https://www.pexels.com/video/..."), so the match must not
+# depend on where the href starts. Download links
+# ("/download/video/...") are excluded - they are not result cards.
+VIDEO_CARD_XPATH = (
+    "//a[contains(@href, '/video/') "
+    "and not(contains(@href, '/download'))]"
+)
 
 
 class PexelsVideoProvider(VideoProvider):
@@ -286,25 +294,41 @@ class PexelsVideoProvider(VideoProvider):
 
     def _wait_for_grid(self, driver):
         """Functional wait until the video grid has rendered - returns as
-        soon as video links appear instead of sleeping a fixed duration."""
+        soon as video links appear instead of sleeping a fixed duration.
+
+        Transient Selenium errors (mid-navigation polls while Pexels
+        rewrites the URL client side, momentary session hiccups) are
+        absorbed and polling continues until the timeout - a single
+        transient error must never fail an otherwise fine page."""
+        timeout = self._seconds("page_timeout_seconds", 60)
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                if driver.find_elements(By.XPATH, VIDEO_CARD_XPATH):
+                    self.notify("Video grid ready")
+                    return True
+            except Exception:
+                # Transient error while polling (e.g. the page is
+                # navigating) - keep waiting for the full timeout.
+                pass
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(1)
         try:
-            WebDriverWait(
-                driver, self._seconds("page_timeout_seconds", 60)
-            ).until(EC.presence_of_element_located(
-                (By.XPATH, "//a[starts-with(@href, '/video/')]")
-            ))
-            self.notify("Video grid ready")
-            return True
+            landed = driver.current_url
         except Exception:
-            self.notify("Video grid did not render in time")
-            return False
+            landed = "unknown"
+        self.notify(
+            f"Video grid did not render in time (landed on: {landed})"
+        )
+        return False
 
     def _pick_random_card(self, driver, downloaded_ids, failed_hrefs=None):
         """Pick one random video card on the results page that has not been
         downloaded yet. Returns (card, href, video_id) or (None, '', '')."""
         if failed_hrefs is None:
             failed_hrefs = set()
-        links = driver.find_elements(By.XPATH, "//a[starts-with(@href, '/video/')]")
+        links = driver.find_elements(By.XPATH, VIDEO_CARD_XPATH)
         candidates = []
         for link in links:
             try:
