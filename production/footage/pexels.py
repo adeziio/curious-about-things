@@ -1,8 +1,11 @@
+import os
 import re
 import time
+import json
 import random
 import glob
 import shutil
+import subprocess
 
 from pathlib import Path
 from urllib.parse import quote, urlencode
@@ -40,37 +43,123 @@ class PexelsVideoProvider(VideoProvider):
 
     def fetch(self, query, destination_dir, max_videos=2, downloaded_ids=None):
         """Search Pexels with orientation + 4K via URL params, download
-        random clips by hovering each video card."""
+        random clips by hovering each video card.
+
+        Resume-aware: if `destination_dir` already holds `max_videos`
+        complete clips from a previous (possibly interrupted) run, no
+        search or download happens at all. If it holds only some of
+        them, only the missing remainder is downloaded and the new
+        clips are numbered after the existing ones.
+
+        Strict: exactly `max_videos` clips are guaranteed on return.
+        Any failure raises VideoProviderError - a partial result is
+        never returned.
+        """
         if downloaded_ids is None:
             downloaded_ids = set()
         query = str(query or "").strip()
         if not query:
-            return []
+            raise VideoProviderError(
+                "Cannot download clips: search query is empty."
+            )
         destination_dir = Path(destination_dir)
         destination_dir.mkdir(parents=True, exist_ok=True)
         if max_videos <= 0:
-            return []
+            raise VideoProviderError(
+                f"Cannot download clips for '{query}': "
+                f"max_videos must be positive (got {max_videos})."
+            )
+
+        existing = self._existing_clips(destination_dir)
+
+        if len(existing) >= max_videos:
+            self.notify(
+                f"Already have {len(existing)} clips for '{query}'; "
+                "skipping download"
+            )
+            return [
+                str(clip_path)
+                for clip_path in existing[:max_videos]
+            ]
+
+        missing = max_videos - len(existing)
+
+        if existing:
+            self.notify(
+                f"Found {len(existing)} existing clips for '{query}'; "
+                f"downloading {missing} more"
+            )
+
         self.notify(f"Searching Pexels for: {query}")
-        driver = self._create_driver(download_dir=str(destination_dir))
-        try:
-            driver.maximize_window()
-        except Exception:
-            pass
         downloaded = []
+        driver = None
         try:
+            driver = self._create_driver(
+                download_dir=str(destination_dir)
+            )
+            try:
+                driver.maximize_window()
+            except Exception:
+                pass
             search_url = self._search_url(query)
             self.notify(f"Opening {search_url}")
             driver.get(search_url)
-            self._wait_for_grid(driver)
+            if not self._wait_for_grid(driver):
+                raise VideoProviderError(
+                    f"Search results page did not load for '{query}'"
+                )
             downloaded = self._download_random_videos(
-                driver, destination_dir, max_videos, downloaded_ids, search_url
+                driver, destination_dir, missing, downloaded_ids, search_url,
+                query=query, existing_count=len(existing)
             )
+        except VideoProviderError:
+            raise
+        except Exception as error:
+            raise VideoProviderError(
+                f"Pexels clip download failed for '{query}': {error}"
+            ) from error
         finally:
+            if driver is not None:
+                try:
+                    driver.quit()
+                except Exception:
+                    pass
+        result = (
+            [str(clip_path) for clip_path in existing]
+            + downloaded
+        )
+        if len(result) < max_videos:
+            raise VideoProviderError(
+                f"Only {len(result)}/{max_videos} clips downloaded "
+                f"for '{query}'"
+            )
+        return result[:max_videos]
+
+    @staticmethod
+    def _existing_clips(destination_dir):
+        """Complete video files already present in the query folder,
+        ordered by name. Partial downloads and empty files are ignored
+        so an interrupted download never counts as a finished clip."""
+        clips = []
+        try:
+            entries = list(Path(destination_dir).iterdir())
+        except OSError:
+            return clips
+        for path in entries:
+            if not path.is_file():
+                continue
+            if path.suffix.lower() in PARTIAL_SUFFIXES:
+                continue
+            if path.suffix.lower() not in VIDEO_SUFFIXES:
+                continue
             try:
-                driver.quit()
-            except Exception:
-                pass
-        return downloaded
+                if path.stat().st_size <= 0:
+                    continue
+            except OSError:
+                continue
+            clips.append(path)
+        clips.sort(key=lambda path: path.name)
+        return clips
 
 
     def _search_url(self, query):
@@ -89,23 +178,32 @@ class PexelsVideoProvider(VideoProvider):
 
 
     def _download_random_videos(
-        self, driver, destination_dir, max_videos, downloaded_ids, search_url
+        self, driver, destination_dir, max_videos, downloaded_ids, search_url,
+        query="", existing_count=0
     ):
         """Steps 4-6: Hover video cards on the results page and download
         clips directly. After each download, recover a clean results grid
-        (Pexels shows a thank-you page/modal) before picking the next card."""
+        (Pexels shows a thank-you page/modal) before picking the next card.
+        `existing_count` shifts clip numbering so resumed downloads do
+        not overwrite clips kept from a previous run.
+
+        Strict: every clip must download. Any failure raises
+        VideoProviderError so the run fails loudly instead of silently
+        continuing with fewer clips than requested."""
         downloaded = []
-        failed_hrefs = set()
         main_handle = driver.current_window_handle
         while len(downloaded) < max_videos:
             card, href, video_id = self._pick_random_card(
-                driver, downloaded_ids, failed_hrefs
+                driver, downloaded_ids
             )
             if card is None:
-                self.notify("No more downloadable videos on page")
-                break
+                raise VideoProviderError(
+                    f"Not enough downloadable videos found on Pexels "
+                    f"for '{query}' "
+                    f"({len(downloaded)}/{max_videos} downloaded)"
+                )
+            self.notify(f"Trying {href}")
             try:
-                self.notify(f"Trying {href}")
                 driver.execute_script(
                     "arguments[0].scrollIntoView({block: 'center'});", card
                 )
@@ -117,22 +215,26 @@ class PexelsVideoProvider(VideoProvider):
                 before = self._snapshot_downloads(destination_dir)
                 self._click_card_download(card, driver)
                 new_file = self._wait_for_new_file(destination_dir, before)
-                if new_file:
-                    clip_name = f"clip_{len(downloaded) + 1:03d}.mp4"
-                    clip_path = destination_dir / clip_name
-                    self._move_file(new_file, clip_path)
-                    if video_id:
-                        downloaded_ids.add(video_id)
-                    downloaded.append(str(clip_path))
-                    self.notify(f"Saved clip: {clip_name}")
-                else:
-                    self.notify("Download did not finish in time; trying next video")
-                    failed_hrefs.add(href)
+                if not new_file:
+                    raise VideoProviderError(
+                        f"Download did not finish in time for {href}"
+                    )
+                clip_name = (
+                    f"clip_{existing_count + len(downloaded) + 1:03d}.mp4"
+                )
+                clip_path = destination_dir / clip_name
+                self._move_file(new_file, clip_path)
+                if video_id:
+                    downloaded_ids.add(video_id)
+                downloaded.append(str(clip_path))
+                self.notify(f"Saved clip: {clip_name}")
                 self._human_pause()
+            except VideoProviderError:
+                raise
             except Exception as error:
-                self.notify(f"Download failed for {href}: {error}")
-                failed_hrefs.add(href)
-                self._human_pause()
+                raise VideoProviderError(
+                    f"Clip download failed for '{query}' ({href}): {error}"
+                ) from error
             # Pexels shows a thank-you page/modal after each download -
             # recover the results grid before picking the next card.
             self._recover_page(driver, search_url, main_handle)
@@ -244,14 +346,68 @@ class PexelsVideoProvider(VideoProvider):
     def _download_directories(self, destination_dir):
         """Directories to watch for the browser's downloads.
 
-        When attaching to an existing Chrome, per-session download prefs do
-        not apply, so the file may land in the user's Downloads folder.
+        When attaching to an existing Chrome, per-session download prefs
+        do not apply, so the file may land in whatever directory Chrome
+        was originally launched with (persisted in the automation
+        profile's Preferences) or the user's Downloads folder.
         """
         directories = [Path(destination_dir)]
-        fallback = Path.home() / "Downloads"
-        if fallback.is_dir() and fallback not in directories:
-            directories.append(fallback)
+        candidates = [
+            Path.home() / "Downloads",
+            *self._profile_download_directories(),
+        ]
+        for directory in candidates:
+            if directory.is_dir() and directory not in directories:
+                directories.append(directory)
         return directories
+
+    def _profile_download_directories(self):
+        """Download directories Chrome used in past sessions, read from
+        the automation profile's persisted Preferences file. Covers the
+        attached-browser case where a download lands in the folder a
+        previous query passed at launch time."""
+        directories = []
+        try:
+            profile_root = Path(self._profile_directory())
+        except Exception:
+            return directories
+        for preferences_file in profile_root.glob("*/Preferences"):
+            try:
+                data = json.loads(
+                    preferences_file.read_text(encoding="utf-8")
+                )
+            except Exception:
+                continue
+            path = str(
+                data.get("download", {}).get("default_directory", "")
+            ).strip()
+            if path:
+                directories.append(Path(path))
+        return directories
+
+    def _force_download_behavior(self, driver, download_dir):
+        """Point an already-running Chrome at `download_dir` for the
+        rest of this session via the DevTools protocol. Prefs passed
+        through Selenium when attaching to an existing browser are
+        ignored by Chrome, so this is the only reliable way to redirect
+        its downloads to the current query's folder."""
+        if not download_dir:
+            return
+        try:
+            driver.execute_cdp_cmd(
+                "Browser.setDownloadBehavior",
+                {
+                    "behavior": "allow",
+                    "downloadPath": str(download_dir),
+                    "eventsEnabled": False,
+                },
+            )
+            self.notify(f"Chrome download target: {download_dir}")
+        except Exception as error:
+            self.notify(
+                f"Could not redirect Chrome downloads via CDP ({error}); "
+                "falling back to watching known folders"
+            )
 
     def _snapshot_downloads(self, destination_dir):
         snapshot = set()
@@ -264,6 +420,7 @@ class PexelsVideoProvider(VideoProvider):
         if timeout is None:
             timeout = self._seconds("download_timeout_seconds", 120)
         deadline = time.monotonic() + timeout
+        last_notify = time.monotonic()
         while time.monotonic() < deadline:
             current = self._snapshot_downloads(destination_dir)
             for path in current - before:
@@ -276,6 +433,15 @@ class PexelsVideoProvider(VideoProvider):
                     continue
                 if file_path.stat().st_size > 0:
                     return file_path
+            # Keep progress alive during long downloads instead of
+            # sitting silently until the timeout.
+            if time.monotonic() - last_notify >= 15:
+                remaining = int(deadline - time.monotonic())
+                self.notify(
+                    f"Waiting for download to finish "
+                    f"({remaining}s left)..."
+                )
+                last_notify = time.monotonic()
             time.sleep(1)
         return None
 
@@ -331,7 +497,21 @@ class PexelsVideoProvider(VideoProvider):
                 return self._attach_driver(download_dir=download_dir)
             except Exception as error:
                 self.notify(f"Could not attach to Chrome ({error}); launching new...")
-        return self._launch_driver(download_dir=download_dir)
+        try:
+            return self._launch_driver(download_dir=download_dir)
+        except Exception as error:
+            # A Chrome left behind by an interrupted run keeps the
+            # automation profile locked, so a fresh launch cannot
+            # start (the new process just forwards to the stale one
+            # and chromedriver times out). Close only Chrome
+            # instances bound to the automation profile - never the
+            # user's personal browser - and try once more.
+            self.notify(
+                f"Could not launch Chrome ({error}); "
+                "closing stale profile Chrome..."
+            )
+            self._close_stale_profile_chrome()
+            return self._launch_driver(download_dir=download_dir)
 
     def _attach_driver(self, download_dir=None):
         options = webdriver.ChromeOptions()
@@ -344,6 +524,9 @@ class PexelsVideoProvider(VideoProvider):
             })
         driver = webdriver.Chrome(options=options)
         driver.set_page_load_timeout(self._seconds("page_timeout_seconds", 60))
+        # Attached browsers ignore Selenium's prefs dict, so redirect
+        # their downloads via the DevTools protocol as well.
+        self._force_download_behavior(driver, download_dir)
         return driver
 
     def _launch_driver(self, download_dir=None):
@@ -355,6 +538,12 @@ class PexelsVideoProvider(VideoProvider):
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-blink-features=AutomationControlled")
         options.add_argument("--log-level=3")
+        # Launch with the configured debugging port so that later
+        # fetches can attach to this browser instead of launching a
+        # fresh one for every search query.
+        options.add_argument(
+            f"--remote-debugging-port={self._debugging_port()}"
+        )
         if download_dir:
             options.add_experimental_option("prefs", {
                 "download.default_directory": download_dir,
@@ -365,7 +554,101 @@ class PexelsVideoProvider(VideoProvider):
         options.add_argument(f"--user-data-dir={profile_directory}")
         driver = webdriver.Chrome(options=options)
         driver.set_page_load_timeout(self._seconds("page_timeout_seconds", 60))
+        # Belt and braces: prefs handle a fresh launch, but make the
+        # target explicit via CDP too so behavior never depends on
+        # whether Chrome honored the prefs.
+        self._force_download_behavior(driver, download_dir)
         return driver
+
+    def _close_stale_profile_chrome(self):
+        """Terminate Chrome processes still bound to the automation
+        profile. These are leftovers from an interrupted run; they keep
+        the profile locked so neither attaching nor a fresh launch can
+        use it. Chrome processes using any other profile (the user's
+        personal browser) are never touched."""
+        marker = str(self._profile_directory()).lower()
+        killed = 0
+        for pid, command_line in self._chrome_processes():
+            if marker not in command_line.lower():
+                continue
+            if self._kill_process(pid):
+                killed += 1
+        if killed:
+            self.notify(
+                f"Closed {killed} stale Chrome process(es) "
+                "using the automation profile"
+            )
+            time.sleep(2)
+        return killed
+
+    @staticmethod
+    def _chrome_processes():
+        """Running Chrome processes as (pid, command_line) tuples."""
+        processes = []
+        try:
+            if os.name == "nt":
+                output = subprocess.run(
+                    [
+                        "powershell", "-NoProfile", "-Command",
+                        "Get-CimInstance Win32_Process "
+                        "-Filter \"Name='chrome.exe'\" "
+                        "| Select-Object ProcessId, CommandLine "
+                        "| ConvertTo-Json",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                ).stdout
+                data = json.loads(output or "[]")
+                if isinstance(data, dict):
+                    data = [data]
+                for entry in data or []:
+                    try:
+                        processes.append(
+                            (
+                                int(entry.get("ProcessId", 0)),
+                                str(entry.get("CommandLine") or ""),
+                            )
+                        )
+                    except (TypeError, ValueError):
+                        continue
+            else:
+                output = subprocess.run(
+                    ["ps", "-eo", "pid=,args="],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                ).stdout
+                for line in output.splitlines():
+                    parts = line.strip().split(None, 1)
+                    if len(parts) != 2 or "chrome" not in parts[1].lower():
+                        continue
+                    try:
+                        processes.append((int(parts[0]), parts[1]))
+                    except ValueError:
+                        continue
+        except Exception:
+            return []
+        return processes
+
+    @staticmethod
+    def _kill_process(pid):
+        try:
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/PID", str(pid), "/F", "/T"],
+                    capture_output=True,
+                    timeout=30,
+                )
+            else:
+                subprocess.run(
+                    ["kill", "-9", str(pid)],
+                    capture_output=True,
+                    timeout=30,
+                )
+            return True
+        except Exception:
+            return False
 
     def _human_pause(self):
         low = self._seconds("pause_min_seconds", 1)
@@ -405,6 +688,13 @@ class PexelsVideoProvider(VideoProvider):
     def _debugging_address(self):
         address = str(self._setting("debugging_address", "")).strip()
         return address or "127.0.0.1:9222"
+
+    def _debugging_port(self):
+        address = self._debugging_address()
+        match = re.search(r"(\d+)\s*$", address)
+        if match:
+            return int(match.group(1))
+        return 9222
 
     def _profile_directory(self):
         profile_directory = Path(

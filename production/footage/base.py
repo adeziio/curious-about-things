@@ -72,9 +72,16 @@ class VideoProvider:
         """
         Searches the provider for `query`, downloads up to
         `max_videos` usable clips into `destination_dir` and
-        returns the list of downloaded file paths. May return an
-        empty list when nothing useful was found - callers must
-        handle that gracefully.
+        returns the list of downloaded file paths.
+
+        Implementations should be resume-aware: when
+        `destination_dir` already contains `max_videos` complete
+        clips from a previous run, nothing new is downloaded and
+        the existing clips are returned instead.
+
+        Implementations must raise VideoProviderError when
+        `max_videos` clips cannot be delivered - callers fail the
+        run instead of continuing with a partial result.
         """
 
         raise NotImplementedError

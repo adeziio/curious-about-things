@@ -437,8 +437,11 @@ class ProductionPipeline:
 
         # One sublist per visual query, in the same order as `visuals`.
         # Each sublist holds the downloaded clip paths for that query.
+        # Strict: every visual must end up with candidates_per_query
+        # clips. Any download failure raises and fails the video
+        # generation process - failures are never skipped or partially
+        # tolerated.
         footage_groups = []
-        failed_queries = []
         total_queries = len(visuals)
         # Track Pexels video IDs already downloaded this episode so
         # different search queries do not produce duplicate clips.
@@ -448,8 +451,10 @@ class ProductionPipeline:
             query = str(visual.get("search_query", "")).strip()
 
             if not query:
-                footage_groups.append([])
-                continue
+                raise VideoProviderError(
+                    f"Visual {index}/{total_queries} has no search "
+                    "query; cannot download footage for it."
+                )
 
             self.update_progress(
                 self._progress_between(
@@ -474,32 +479,25 @@ class ProductionPipeline:
                     max_videos=candidates_per_query,
                     downloaded_ids=downloaded_ids,
                 )
+            except VideoProviderError:
+                raise
             except Exception as error:
-                self.update_progress(
-                    40,
-                    f"Footage search failed for "
-                    f"'{query}': {error}",
+                raise VideoProviderError(
+                    f"Footage collection failed for '{query}': {error}"
+                ) from error
+
+            if len(downloaded) < candidates_per_query:
+                raise VideoProviderError(
+                    f"Only {len(downloaded)}/{candidates_per_query} clips "
+                    f"downloaded for '{query}'."
                 )
-                failed_queries.append(query)
-                footage_groups.append([])
-                continue
 
             footage_groups.append(list(downloaded))
 
-        total_available = sum(len(g) for g in footage_groups)
-
-        if total_available == 0:
+        if not footage_groups:
             raise VideoProviderError(
-                "No stock footage could be downloaded "
-                "for any visual search query."
-            )
-
-        if failed_queries:
-            self.update_progress(
-                45,
-                f"Some footage searches failed "
-                f"({len(failed_queries)}/{total_queries}); "
-                f"continuing with the clips that were downloaded.",
+                "No visual search queries available to download "
+                "footage for."
             )
 
         return footage_groups
