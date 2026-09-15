@@ -15,6 +15,6 @@
     "page_timeout_seconds": 60,
     "download_timeout_seconds": 300,
 
-    "pause_min_seconds": 1,
-    "pause_max_seconds": 3
+    "pause_min_seconds": 3,
+    "pause_max_seconds": 6
 }

@@ -104,10 +104,14 @@ class PexelsVideoProvider(VideoProvider):
             search_url = self._search_url(query)
             self.notify(f"Opening {search_url}")
             driver.get(search_url)
+            self._verify_search_filters(driver, query)
             if not self._wait_for_grid(driver):
                 raise VideoProviderError(
                     f"Search results page did not load for '{query}'"
                 )
+            # Give the page a beat to settle (and Pexels' client-side
+            # filters a moment to apply) before any card is picked.
+            self._human_pause()
             downloaded = self._download_random_videos(
                 driver, destination_dir, missing, downloaded_ids, search_url,
                 query=query, existing_count=len(existing)
@@ -164,7 +168,14 @@ class PexelsVideoProvider(VideoProvider):
 
     def _search_url(self, query):
         """Filtered search URL - orientation + resolution as query params,
-        so no on-page filter clicking is ever needed."""
+        so no on-page filter clicking is ever needed.
+
+        The query is normalized to spaces (no hyphens) because Pexels
+        rewrites hyphenated path segments client side - e.g.
+        "/search/videos/microphone%20close-up/" becomes
+        "/search/videos/microphone%20close%20up/" - and that rewrite
+        DROPS the orientation and resolution_name query params,
+        silently turning the search into an unfiltered one."""
         orientation = str(self._setting("orientation", "portrait")).strip().lower()
         # Pexels' URL param is "portrait" for vertical videos.
         if orientation in ("vertical", "portrait"):
@@ -174,7 +185,19 @@ class PexelsVideoProvider(VideoProvider):
             "orientation": orientation or "portrait",
             "resolution_name": resolution or "4K",
         })
-        return f"{self._base_url()}/search/videos/{quote(query)}/?{params}"
+        search_term = quote(str(query).replace("-", " "))
+        return f"{self._base_url()}/search/videos/{search_term}/?{params}"
+
+    def _verify_search_filters(self, driver, query):
+        """Fail loudly if Pexels dropped the orientation/resolution
+        params while loading the results page - an unfiltered search
+        must never be used for downloads."""
+        final_url = str(driver.current_url or "")
+        if "orientation=" not in final_url:
+            raise VideoProviderError(
+                f"Pexels dropped the search filters while loading "
+                f"'{query}' (landed on: {final_url})"
+            )
 
 
     def _download_random_videos(
@@ -257,6 +280,7 @@ class PexelsVideoProvider(VideoProvider):
         # A fresh load clears any thank-you modal and rebuilds the grid.
         self.notify("Reloading results page for next download")
         driver.get(search_url)
+        self._verify_search_filters(driver, "next download")
         self._wait_for_grid(driver)
         self._human_pause()
 
