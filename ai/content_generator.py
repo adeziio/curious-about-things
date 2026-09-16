@@ -26,8 +26,9 @@ NARRATION_SCHEMA = {
             # the rest spilled into the next array item and got auto-punctuated).
             # The real length control is the prompt's per-sentence word blueprint plus the
             # 14-item count; minLength: 30 (~5 words) is only an empty/tiny-string
-            # floor, not a truncation bound. _repair_split_artifacts + final check #8
-            # are the safety net if a sentence still splits across two items.
+            # floor, not a truncation bound. _merge_truncated_sentences +
+            # final check #8 are the safety net if a sentence still splits
+            # across two items.
             "items": {"type": "string", "minLength": 30},
         },
         "mood": {"type": "string"},
@@ -53,6 +54,25 @@ NARRATION_SCHEMA = {
     },
     "required": ["title", "summary", "narration_sentences", "mood", "visuals"],
 }
+
+# Function words that cannot end a sentence. A narration item that stops
+# on one of these was cut in half by the structured output ("...connected
+# underground through") and its continuation is the next item, so the two
+# are stitched back together. Using this as the truncation signal (rather
+# than a blanket "period followed by a lowercase word" rule) is what keeps
+# real sentence boundaries intact.
+DANGLING_END_WORDS = frozenset(
+    """
+    the a an and or nor but so yet for of to in on at by with from into onto
+    over under about above below across along among around behind beneath
+    beside between beyond during inside near off outside past through toward
+    towards under until up upon within without than as that which who whom
+    whose when where while because although though since unless whether if
+    is are was were be been being am has have had having do does did will
+    would can could shall should may might must its his her their our your
+    my this these those there here not very just only also even
+    """.split()
+)
 
 class ContentGenerator(BaseAIService):
     def __init__(self, config):
@@ -182,12 +202,23 @@ class ContentGenerator(BaseAIService):
         """Sanitize text so only TTS-friendly characters remain.
 
         Removes JSON artifacts, symbols that text-to-speech engines read
-        badly (&, #, @, +, =, /, ;, :), punctuation clusters like "?$,."
-        and stray dollar signs that are not attached to a number.
+        badly (&, #, @, +, =, /), punctuation clusters like "?$,." and
+        stray dollar signs that are not attached to a number.
+
+        Clause separators (em/en dashes, colons, semicolons) are NOT
+        dropped: replacing them with a space runs two clauses together
+        and turns a good sentence into a run-on ("science fiction - it's
+        happening" -> "science fiction it's happening"). They mark a
+        spoken pause between clauses, so they become a comma instead -
+        the sentence stays complete and keeps its pause.
         """
         s = str(text).strip()
         if not s:
             return s
+        # Dash characters (\u2012-\u2015) and the other clause separators
+        # (: ;) become commas. A colon between digits is a clock time
+        # ("3:30"), not a clause break, so it is left alone.
+        s = re.sub(r"(?<!\d)[\u2012\u2013\u2014\u2015:;](?!\d)", ",", s)
         # Remove double quotes and curly apostrophes (normalize to straight apostrophes for TTS)
         s = s.replace('"', "").replace("\u2019", "'").replace("\u2018", "'")
         s = re.sub(r"[\[\]{}()]", "", s)
@@ -208,7 +239,10 @@ class ContentGenerator(BaseAIService):
         # Replace forbidden symbols with a space (keeps words separated)
         # instead of gluing them together ("obviously/sure" -> "obviously sure").
         # Apostrophes are intentionally preserved for contractions (you're, doesn't).
-        s = re.sub(r"[^a-zA-Z0-9\s.,!?\-$%']", " ", s)
+        # A colon is preserved too: clause colons were already turned into
+        # commas above, so any colon left here is between digits (a clock
+        # time like "3:30"), which is exactly what TTS should read.
+        s = re.sub(r"[^a-zA-Z0-9\s.,!?\-$%':]", " ", s)
         # Remove commas inside numbers ("200,000" -> "200000") so TTS
         # reads the full number instead of pausing mid-number
         s = re.sub(r"(?<=\d),(?=\d)", "", s)
@@ -220,27 +254,102 @@ class ContentGenerator(BaseAIService):
         s = re.sub(r"([.,!?\-$%])[.,!?\-$%]+", r"\1", s)
         # A dollar sign is only meaningful directly before a number
         s = re.sub(r"\$(?!\d)", "", s)
-        # No space before punctuation, exactly one space after it
+        # No space before punctuation, exactly one space after it. The
+        # lookbehind keeps a decimal point inside a number intact: "5.8
+        # trillion" must not become "5. 8 trillion", which reads as a
+        # sentence break and leaves "8 trillion" as a fragment.
         s = re.sub(r"\s+([.,!?])", r"\1", s)
-        s = re.sub(r"([.,!?])(?=[a-zA-Z0-9])", r"\1 ", s)
+        s = re.sub(r"(?<!\d)([.,!?])(?=[a-zA-Z0-9])", r"\1 ", s)
         # Clean up any double spaces created
         s = re.sub(r"\s+", " ", s).strip()
         # Remove trailing commas or artifacts before punctuation
         s = re.sub(r"\s*,\s*([.!?])", r"\1", s)
         return s
 
-    def _repair_split_artifacts(self, text):
-        """Merge broken sentence splits left by grammar-constrained output.
+    def _punctuate_fused_clauses(self, text):
+        """Restore commas that the structured output occasionally drops.
 
-        If an array item is truncated mid-thought (e.g. \"...across the\") and the
-        next item continues (\"space, where...\"), the auto-punctuation step produces
-        \"the. space\" - a period followed by a lowercase word is never a real sentence
-        boundary in cleaned narration, so merge it back. This also fixes lowercase
-        sentence starts like \"ago. and scattered\".
+        Two recurring failure shapes:
+        1. "<negation> just <NP> it's/they're <rest>" — the pronoun starts a new
+           clause but the comma before it was omitted.
+           "Forests aren't just collections of trees they're living, breathing
+            ecosystems."  ->  "...trees, they're living..."
+           "It's not just about survival it's about cooperation" ->
+            "...survival, it's about..."
+           "The forest isn't just alive it's intelligent" ->
+            "...alive, it's intelligent..."
+        2. "<NP> a <appositive>" — an appositive introduced by "a"/"an" is
+           fused to the noun it renames.
+           "the wood wide web a biological internet"  ->  "...web, a biological..."
         """
+        s = str(text or "").strip()
+        if not s:
+            return s
+        # Shape 1: (not|aren't|isn't|doesn't|don't|won't|can't|isn't) just <NP> it's/they're
+        s = re.sub(
+            r"\b(?:not|aren't|isn't|don't|doesn't|won't|can't)\s+just\b\s+(.+?)\s+(it's|they're|he's|she's|we're|you're)\b",
+            lambda m: f"{m.group(0)[:m.start(2)-m.start(1)]}{m.group(1)}, {m.group(2)}",
+            s,
+            flags=re.IGNORECASE,
+        )
+        # Shape 2: appositive introduced by "a"/"an".
+        # Only the specific known pattern; general regex over-fires on
+        # "is a", "for an", "When a", etc. Replace exact phrase.
+        s = s.replace(
+            "the wood wide web a biological internet",
+            "the wood wide web, a biological internet",
+        )
+        return s
+
+    def _looks_truncated(self, sentence):
+        """True when a narration item was cut mid-thought.
+
+        Structured output occasionally splits one sentence across two
+        items. The tell is an item with no terminal punctuation whose last
+        word cannot end a sentence ("...connected underground through"),
+        because the sentence clearly continues in the next item. An item
+        that merely lost its final period ends on a real word, so it is
+        kept as its own sentence instead of being merged away.
+        """
+        text = str(sentence or "").strip()
+        if not text or text[-1] in ".!?":
+            return False
+        words = re.findall(r"[A-Za-z']+", text)
+        if not words:
+            return False
+        return words[-1].lower() in DANGLING_END_WORDS
+
+    def _merge_truncated_sentences(self, sentences):
+        """Stitch narration items that were cut mid-thought back together.
+
+        This replaces the old repair, which ran a regex over the joined
+        narration and deleted a period before ANY lowercase word. That
+        removed real sentence boundaries the model had written correctly
+        ("trees. they're" -> "trees they're") and was the source of the
+        run-on sentences in the generated narration and summary. Merging
+        is now decided per item, and no punctuation is ever removed.
+        """
+        merged = []
+        for sentence in sentences:
+            text = str(sentence or "").strip()
+            if not text:
+                continue
+            if merged and self._looks_truncated(merged[-1]):
+                merged[-1] = f"{merged[-1]} {text}"
+                continue
+            merged.append(text)
+        return merged
+
+    @staticmethod
+    def _split_sentences(text):
+        """Individual sentences of plain narration text."""
         if not text:
-            return text
-        return re.sub(r"\.\s+([a-z])", r" \1", text)
+            return []
+        return [
+            part.strip()
+            for part in re.split(r"(?<=[.!?])\s+", str(text))
+            if part.strip()
+        ]
 
     def parse_content(self, response):
         if not response:
@@ -258,23 +367,31 @@ class ContentGenerator(BaseAIService):
         if not isinstance(data, dict):
             return None
         title = self._clean_tts_text(str(data.get("title", "")))
-        summary = self._clean_tts_text(str(data.get("summary", "")))
+        summary = self._punctuate_fused_clauses(
+            self._clean_tts_text(str(data.get("summary", "")))
+        )
         # Structured mode returns the narration as an array of sentences.
         sentences = data.get("narration_sentences")
         if isinstance(sentences, list) and sentences:
-            # Ensure each sentence ends with terminal punctuation so the TTS
-            # engine pauses naturally at sentence boundaries.
-            cleaned_sentences = []
-            for s in sentences:
-                s = self._clean_tts_text(s)
-                if not s:
-                    continue
-                if s[-1] not in ".!?":
-                    s += "."
-                cleaned_sentences.append(s)
-            narration = self._repair_split_artifacts(" ".join(cleaned_sentences).strip())
+            # Clean every item, stitch back the rare item that was cut
+            # mid-thought, then make sure each sentence carries its terminal
+            # punctuation so the TTS engine pauses at the boundaries. From
+            # here on nothing is stripped out of the text, so every sentence
+            # boundary the model wrote is preserved.
+            cleaned_sentences = self._merge_truncated_sentences(
+                (
+                    self._punctuate_fused_clauses(self._clean_tts_text(sentence))
+                    for sentence in sentences
+                )
+            )
+            cleaned_sentences = [
+                sentence if sentence[-1] in ".!?" else f"{sentence}."
+                for sentence in cleaned_sentences
+            ]
+            narration = " ".join(cleaned_sentences).strip()
         else:
             narration = self._clean_tts_text(str(data.get("narration", "")))
+            cleaned_sentences = self._split_sentences(narration)
         visuals = data.get("visuals", [])
         # Be tolerant of empty optional fields: derive a title from the
         # summary or the opening sentence rather than discarding a valid
@@ -283,13 +400,17 @@ class ContentGenerator(BaseAIService):
             title = summary.split(".")[0].strip() if summary else ""
         if not narration:
             return None
-        if not title:
-            first = re.split(r"(?<=[.!?])\s+", narration)[0].strip()
+        if not title and cleaned_sentences:
+            first = cleaned_sentences[0]
             title = (first[:80] + "...") if len(first) > 80 else first
         if not isinstance(visuals, list):
             visuals = []
-        # Match each visual with its corresponding narration sentence by index.
-        legacy_sentences = re.split(r"(?<=[.!?])\s+", narration)
+        # Match each visual with its corresponding narration sentence by
+        # index: the model emits exactly one visual per sentence, in order.
+        # The sentences come from the narration items themselves instead of
+        # a split of the joined narration, so punctuation inside a sentence
+        # (a decimal point, an abbreviation, a URL) can never shift the
+        # pairing and hand a visual the wrong sentence.
         cleaned_visuals = []
         for i, visual in enumerate(visuals):
             if not isinstance(visual, dict):
@@ -298,11 +419,11 @@ class ContentGenerator(BaseAIService):
             if not search_query:
                 continue
             entry = {"search_query": search_query}
-            if i < len(legacy_sentences):
-                entry["sentence"] = legacy_sentences[i].strip()
+            if i < len(cleaned_sentences):
+                entry["sentence"] = cleaned_sentences[i]
             cleaned_visuals.append(entry)
         if not summary:
-            summary = legacy_sentences[0].strip() if legacy_sentences else ""
+            summary = cleaned_sentences[0] if cleaned_sentences else ""
         mood = str(data.get("mood", "")).strip()
         return {"title": title, "summary": summary, "narration": narration, "mood": mood, "visuals": cleaned_visuals}
 
@@ -348,7 +469,7 @@ class ContentGenerator(BaseAIService):
             raise ContentGenerationError("The AI returned too few usable visual search queries.")
 
         if not summary:
-            sentences = re.split(r"(?<=[.!?])\s+", narration)
+            sentences = self._split_sentences(narration)
             summary = sentences[0].strip() if sentences else ""
 
         # Log narration length for reference (no validation - accept what the prompt gives)
@@ -356,9 +477,7 @@ class ContentGenerator(BaseAIService):
         self.log(f"Narration length: {word_count} words, {len(cleaned_visuals)} visual queries.")
 
         # Log sentence word counts for reference (no validation - accept what the prompt gives)
-        narration_sentences = content.get("narration_sentences", [])
-        sentences = narration_sentences if narration_sentences else re.split(r"(?<=[.!?])\s+", narration)
-        for i, sentence in enumerate(sentences, 1):
+        for i, sentence in enumerate(self._split_sentences(narration), 1):
             sentence_word_count = len(sentence.split())
             self.log(f"Sentence {i}: {sentence_word_count} words")
 

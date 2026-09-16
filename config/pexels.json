@@ -12,7 +12,10 @@
     "orientation": "vertical",
     "resolution_name": "4K",
 
+    "direct_download": true,
+
     "page_timeout_seconds": 60,
+    "challenge_timeout_seconds": 180,
     "download_timeout_seconds": 300,
 
     "pause_min_seconds": 3,

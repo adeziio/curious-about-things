@@ -35,6 +35,27 @@ VIDEO_CARD_XPATH = (
     "and not(contains(@href, '/download'))]"
 )
 
+# Pexels sits behind Cloudflare, which sometimes answers a navigation
+# with its "Just a moment..." bot check instead of the page that was
+# requested. That interstitial has no video grid at all, so treating it
+# like a merely slow page load makes an attendable check look like a
+# broken search ("Search results page did not load"). It is therefore
+# detected explicitly and given its own, longer wait - it usually
+# clears by itself within seconds, but it can also wait for a human
+# click, so the operator is told what is happening.
+CHALLENGE_URL_MARKERS = ("__cf_chl", "/cdn-cgi/challenge")
+CHALLENGE_TITLE_MARKERS = (
+    "just a moment",
+    "attention required",
+    "checking your browser",
+)
+CHALLENGE_TEXT_MARKERS = (
+    "verify you are human",
+    "performing security verification",
+    "enable javascript and cookies to continue",
+    "checking your browser before accessing",
+)
+
 
 class PexelsVideoProvider(VideoProvider):
     DEFAULT_BASE_URL = "https://www.pexels.com"
@@ -112,11 +133,17 @@ class PexelsVideoProvider(VideoProvider):
             search_url = self._search_url(query)
             self.notify(f"Opening {search_url}")
             driver.get(search_url)
-            self._verify_search_filters(driver, query)
             if not self._wait_for_grid(driver):
                 raise VideoProviderError(
-                    f"Search results page did not load for '{query}'"
+                    self._grid_failure_message(driver, query)
                 )
+            # The filters are only verified once the real results grid is
+            # on screen: Cloudflare's bot check replaces the search page
+            # entirely (it keeps the query params, so it would otherwise
+            # be mistaken for a page whose filters were dropped), and a
+            # rewrite to an unfiltered results page is still caught here
+            # before anything is downloaded.
+            self._verify_search_filters(driver, query)
             # Give the page a beat to settle (and Pexels' client-side
             # filters a moment to apply) before any card is picked.
             self._human_pause()
@@ -199,7 +226,17 @@ class PexelsVideoProvider(VideoProvider):
     def _verify_search_filters(self, driver, query):
         """Fail loudly if Pexels dropped the orientation/resolution
         params while loading the results page - an unfiltered search
-        must never be used for downloads."""
+        must never be used for downloads.
+
+        Cloudflare's bot-check interstitial is exempt: it is not a
+        search results page at all, so it is skipped here (and the
+        filters are re-checked once the real grid has loaded)."""
+        if self._page_is_challenge(driver):
+            self.notify(
+                "Bot check page (no results yet) - filters are checked "
+                "again once the search results load"
+            )
+            return
         final_url = str(driver.current_url or "")
         if "orientation=" not in final_url:
             raise VideoProviderError(
@@ -212,11 +249,11 @@ class PexelsVideoProvider(VideoProvider):
         self, driver, destination_dir, max_videos, downloaded_ids, search_url,
         query="", existing_count=0
     ):
-        """Steps 4-6: Hover video cards on the results page and download
-        clips directly. After each download, recover a clean results grid
-        (Pexels shows a thank-you page/modal) before picking the next card.
-        `existing_count` shifts clip numbering so resumed downloads do
-        not overwrite clips kept from a previous run.
+        """Steps 4-6: Pick random video cards on the results page and
+        download the clips. After a browser download, recover a clean
+        results grid (Pexels shows a thank-you page/modal) before picking
+        the next card. `existing_count` shifts clip numbering so resumed
+        downloads do not overwrite clips kept from a previous run.
 
         Strict: every clip must download. Any failure raises
         VideoProviderError so the run fails loudly instead of silently
@@ -234,27 +271,17 @@ class PexelsVideoProvider(VideoProvider):
                     f"({len(downloaded)}/{max_videos} downloaded)"
                 )
             self.notify(f"Trying {href}")
+            clip_name = (
+                f"clip_{existing_count + len(downloaded) + 1:03d}.mp4"
+            )
+            clip_path = destination_dir / clip_name
+            used_browser = False
             try:
-                driver.execute_script(
-                    "arguments[0].scrollIntoView({block: 'center'});", card
-                )
-                webdriver.ActionChains(driver).move_to_element(card).perform()
-                self.notify("Hovered video card")
-                # Human beat: let the hover-revealed Download button
-                # settle and avoid machine-gun-fast movements.
-                self._human_pause()
-                before = self._snapshot_downloads(destination_dir)
-                self._click_card_download(card, driver)
-                new_file = self._wait_for_new_file(destination_dir, before)
-                if not new_file:
-                    raise VideoProviderError(
-                        f"Download did not finish in time for {href}"
+                if not self._download_direct(video_id, clip_path):
+                    used_browser = True
+                    self._download_from_card(
+                        card, driver, destination_dir, clip_path, href
                     )
-                clip_name = (
-                    f"clip_{existing_count + len(downloaded) + 1:03d}.mp4"
-                )
-                clip_path = destination_dir / clip_name
-                self._move_file(new_file, clip_path)
                 if video_id:
                     downloaded_ids.add(video_id)
                 downloaded.append(str(clip_path))
@@ -266,15 +293,45 @@ class PexelsVideoProvider(VideoProvider):
                 raise VideoProviderError(
                     f"Clip download failed for '{query}' ({href}): {error}"
                 ) from error
-            # Pexels shows a thank-you page/modal after each download -
-            # recover the results grid before picking the next card.
-            self._recover_page(driver, search_url, main_handle)
+            if used_browser:
+                # Only a browser download leaves a thank-you page/modal or
+                # an extra tab behind. Reloading the results page is also
+                # the single biggest source of Cloudflare's bot check, so
+                # it is skipped completely whenever the direct download
+                # worked - which is the normal case.
+                self._recover_page(driver, search_url, main_handle, query)
         return downloaded
 
-    def _recover_page(self, driver, search_url, main_handle):
-        """After a download, Pexels may open a thank-you page/modal or a new
-        tab. Return to a clean, filtered results grid so the next card can be
-        hovered and downloaded."""
+    def _download_from_card(
+        self, card, driver, destination_dir, clip_path, href
+    ):
+        """Fallback download path: hover the card, click its Download
+        button and wait for the browser to finish writing the file."""
+        driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center'});", card
+        )
+        webdriver.ActionChains(driver).move_to_element(card).perform()
+        self.notify("Hovered video card")
+        # Human beat: let the hover-revealed Download button
+        # settle and avoid machine-gun-fast movements.
+        self._human_pause()
+        before = self._snapshot_downloads(destination_dir)
+        self._click_card_download(card, driver)
+        new_file = self._wait_for_new_file(destination_dir, before)
+        if not new_file:
+            raise VideoProviderError(
+                f"Download did not finish in time for {href}"
+            )
+        self._move_file(new_file, clip_path)
+        return clip_path
+
+    def _recover_page(self, driver, search_url, main_handle, query=""):
+        """After a *browser* download, Pexels may open a thank-you
+        page/modal or a new tab. Return to a clean, filtered results grid
+        so the next card can be hovered and downloaded.
+
+        The direct download path never navigates, so it never needs this
+        (and skipping it is what keeps the bot check away)."""
         # Close any extra tabs the download opened.
         try:
             for handle in list(driver.window_handles):
@@ -288,8 +345,15 @@ class PexelsVideoProvider(VideoProvider):
         # A fresh load clears any thank-you modal and rebuilds the grid.
         self.notify("Reloading results page for next download")
         driver.get(search_url)
-        self._verify_search_filters(driver, "next download")
-        self._wait_for_grid(driver)
+        # This reload is as likely to be answered with the bot check as
+        # the first load, so the wait (and its error) must be the same:
+        # otherwise the next card pick would report "not enough videos"
+        # for a page that never showed any results at all.
+        if not self._wait_for_grid(driver):
+            raise VideoProviderError(
+                self._grid_failure_message(driver, query or "next download")
+            )
+        self._verify_search_filters(driver, query or "next download")
         self._human_pause()
 
     def _wait_for_grid(self, driver):
@@ -299,20 +363,49 @@ class PexelsVideoProvider(VideoProvider):
         Transient Selenium errors (mid-navigation polls while Pexels
         rewrites the URL client side, momentary session hiccups) are
         absorbed and polling continues until the timeout - a single
-        transient error must never fail an otherwise fine page."""
+        transient error must never fail an otherwise fine page.
+
+        Cloudflare's bot check is waited out on a separate, longer
+        budget (`challenge_timeout_seconds`): while it is on screen there
+        is no grid to find, and it normally clears on its own - so it
+        must not be reported as a broken search. The regular page
+        timeout keeps applying to everything else.
+        """
         timeout = self._seconds("page_timeout_seconds", 60)
+        challenge_timeout = self._seconds("challenge_timeout_seconds", 180)
         deadline = time.monotonic() + timeout
+        challenge_deadline = None
+        challenge_announced = False
+        last_notify = time.monotonic()
         while True:
-            try:
-                if driver.find_elements(By.XPATH, VIDEO_CARD_XPATH):
-                    self.notify("Video grid ready")
-                    return True
-            except Exception:
-                # Transient error while polling (e.g. the page is
-                # navigating) - keep waiting for the full timeout.
-                pass
-            if time.monotonic() >= deadline:
+            if self._grid_present(driver):
+                self.notify("Video grid ready")
+                return True
+            now = time.monotonic()
+            if self._page_is_challenge(driver):
+                if challenge_deadline is None:
+                    challenge_deadline = now + challenge_timeout
+                if not challenge_announced:
+                    self.notify(
+                        "Pexels is showing its bot check "
+                        "(\"Just a moment...\") instead of the search "
+                        f"results - waiting up to {int(challenge_timeout)}s "
+                        "for it to clear. If it asks for a click, complete "
+                        "it in the browser window."
+                    )
+                    challenge_announced = True
+                # A challenge page invalidates the normal page deadline:
+                # whatever loaded before it is gone, so the wait is
+                # extended while the check is still on screen.
+                deadline = max(deadline, challenge_deadline)
+            if now >= deadline:
                 break
+            if now - last_notify >= 15:
+                remaining = int(deadline - now)
+                self.notify(
+                    f"Waiting for the video grid to load ({remaining}s left)..."
+                )
+                last_notify = now
             time.sleep(1)
         try:
             landed = driver.current_url
@@ -322,6 +415,62 @@ class PexelsVideoProvider(VideoProvider):
             f"Video grid did not render in time (landed on: {landed})"
         )
         return False
+
+    @staticmethod
+    def _grid_present(driver):
+        """True when the results grid has rendered video cards.
+
+        Transient errors while polling (e.g. the page is navigating) are
+        treated as 'not yet' so the wait continues."""
+        try:
+            return bool(driver.find_elements(By.XPATH, VIDEO_CARD_XPATH))
+        except Exception:
+            return False
+
+    @staticmethod
+    def _page_is_challenge(driver):
+        """True while Cloudflare's bot-check interstitial is on screen.
+
+        The check is identified by its challenge URL params, its
+        "Just a moment..." title and its on-page text, so it is still
+        recognised if any one of those details changes."""
+        try:
+            url = str(driver.current_url or "").lower()
+        except Exception:
+            url = ""
+        if any(marker in url for marker in CHALLENGE_URL_MARKERS):
+            return True
+        try:
+            title = str(driver.title or "").strip().lower()
+        except Exception:
+            title = ""
+        if any(marker in title for marker in CHALLENGE_TITLE_MARKERS):
+            return True
+        try:
+            text = driver.find_element(By.TAG_NAME, "body").text.lower()
+        except Exception:
+            return False
+        return any(marker in text for marker in CHALLENGE_TEXT_MARKERS)
+
+    def _grid_failure_message(self, driver, query):
+        """Explain why the results grid never appeared: a bot check that
+        did not clear is an attendable condition, not a missing page, and
+        it needs a different response from the operator."""
+        try:
+            landed = driver.current_url
+        except Exception:
+            landed = "unknown"
+        if self._page_is_challenge(driver):
+            return (
+                f"Search results page did not load for '{query}': Pexels "
+                "is showing its bot check (\"Just a moment...\") and it did "
+                f"not clear in time. Complete the check in the browser "
+                f"window and run again (landed on: {landed})."
+            )
+        return (
+            f"Search results page did not load for '{query}' "
+            f"(landed on: {landed})"
+        )
 
     def _pick_random_card(self, driver, downloaded_ids, failed_hrefs=None):
         """Pick one random video card on the results page that has not been
@@ -515,29 +664,103 @@ class PexelsVideoProvider(VideoProvider):
         fallback = CLIP_ID_PATTERN.search(str(url))
         return fallback.group(1) if fallback else ""
 
+    def _direct_download_url(self, video_id):
+        """Pexels' download endpoint for a video id - the exact URL the
+        card's hover Download button points at. It redirects to the file
+        on videos.pexels.com, so the clip can be fetched directly instead
+        of making the browser stream it."""
+        return f"{self._base_url()}/download/video/{video_id}/"
+
+    def _download_direct(self, video_id, clip_path):
+        """Primary download path: fetch the picked clip with requests.
+
+        The browser path is kept only as a fallback because the same file
+        arrives through Chrome at a fraction of the speed (measured
+        ~0.2 MB/s through the browser vs ~30 MB/s direct) and can stall
+        mid-transfer, which used to fail whole runs. Fetching the clip
+        this way also means the results page is never navigated after a
+        download, which is what keeps Pexels' bot check away.
+
+        Returns True when the clip was saved, False when the caller
+        should fall back to the browser.
+        """
+        if not video_id:
+            return False
+        if not self._flag("direct_download", True):
+            self.notify("Direct download disabled; using the browser")
+            return False
+        try:
+            self._download_url(self._direct_download_url(video_id), clip_path)
+        except VideoProviderError as error:
+            self.notify(
+                f"Direct download of clip {video_id} failed ({error}); "
+                "falling back to the browser"
+            )
+            return False
+        return True
+
     def _download_url(self, url, output_path):
-        """Download a direct URL to output_path."""
+        """Download a direct URL to output_path.
+
+        The clip is streamed to a `.part` file and only moved into place
+        once it has arrived in full, so an interrupted transfer can never
+        be mistaken for a finished clip (`existing clips` ignores
+        `.part` files)."""
         download_timeout = self._seconds("download_timeout_seconds", 300)
-        response = requests.get(
-            url,
-            stream=True,
-            timeout=download_timeout,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                "Referer": self._base_url(),
-            },
-        )
-        if response.status_code != 200:
-            raise VideoProviderError(f"HTTP {response.status_code}")
         output_path = Path(output_path)
-        with output_path.open("wb") as handle:
-            for chunk in response.iter_content(chunk_size=1024 * 256):
-                if chunk:
+        partial_path = output_path.with_name(f"{output_path.name}.part")
+        partial_path.unlink(missing_ok=True)
+        try:
+            response = requests.get(
+                url,
+                stream=True,
+                timeout=(30, download_timeout),
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/140.0.0.0 Safari/537.36"
+                    ),
+                    "Referer": f"{self._base_url()}/",
+                },
+            )
+            if response.status_code != 200:
+                raise VideoProviderError(f"HTTP {response.status_code}")
+            expected = int(response.headers.get("Content-Length") or 0)
+            written = 0
+            last_notify = time.monotonic()
+            with partial_path.open("wb") as handle:
+                for chunk in response.iter_content(chunk_size=1024 * 256):
+                    if not chunk:
+                        continue
                     handle.write(chunk)
-        if not output_path.is_file() or output_path.stat().st_size < 1024:
-            output_path.unlink(missing_ok=True)
-            raise VideoProviderError("Downloaded clip was empty")
+                    written += len(chunk)
+                    # Keep progress alive on slow connections instead of
+                    # sitting silently until the timeout.
+                    if time.monotonic() - last_notify >= 15:
+                        self.notify(self._download_progress(written, expected))
+                        last_notify = time.monotonic()
+            if written < 1024:
+                raise VideoProviderError("Downloaded clip was empty")
+            self._move_file(partial_path, output_path)
+        except VideoProviderError:
+            partial_path.unlink(missing_ok=True)
+            raise
+        except Exception as error:
+            partial_path.unlink(missing_ok=True)
+            raise VideoProviderError(f"Download failed: {error}") from error
         return output_path
+
+    @staticmethod
+    def _download_progress(written, expected):
+        """Human-readable progress line for a running download."""
+        megabytes = written / 1024 / 1024
+        if expected > 0:
+            return (
+                f"Downloading clip: {megabytes:.0f}/"
+                f"{expected / 1024 / 1024:.0f} MB"
+            )
+        return f"Downloading clip: {megabytes:.0f} MB"
 
     def _create_driver(self, download_dir=None):
         if self._attach_to_existing_chrome():

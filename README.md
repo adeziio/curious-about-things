@@ -159,6 +159,26 @@ All provider-specific settings are isolated in a dedicated section
 means adding one module under `production/footage/` and one config file — the
 rest of the pipeline stays unchanged.
 
+Pexels sits behind Cloudflare, which occasionally answers a page load with
+its "Just a moment..." bot check instead of the search results. That page
+has no video grid at all, so it is detected explicitly and waited out for
+up to `challenge_timeout_seconds` (`config/pexels.json`) while the run
+keeps reporting progress — it usually clears on its own, and with
+`headless: false` it can also be cleared with a click in the browser
+window while the run is waiting. If the check is still up when the wait
+ends, the run fails with a message naming the bot check (instead of the
+misleading "Search results page did not load") so it is clear that the
+check, not the search, needs attention.
+
+Selected clips are fetched straight from Pexels' download URL with
+`requests` (`direct_download: true` in `config/pexels.json`) instead of
+being streamed by the browser: the browser reached only ~0.2 MB/s and
+occasionally stalled mid-file on 4K clips, while the same file arrives at
+30+ MB/s directly. Because nothing is downloaded through the browser, the
+results page is no longer reloaded after every clip either, which removes
+the main trigger of the bot check above. The hover/click download remains
+as an automatic fallback (set `direct_download: false` to always use it).
+
 ### Shorts requirements
 
 Configured in `app.json` under `shorts`:
