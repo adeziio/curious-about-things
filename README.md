@@ -54,13 +54,7 @@ and `youtube.png` — and the README picks them up automatically.
 ### Windows
 
 ```bat
-install_windows.bat
-```
-
-### Linux / macOS
-
-```bash
-./install_linux.sh
+setup.bat
 ```
 
 ## Run
@@ -68,13 +62,7 @@ install_windows.bat
 ### Windows
 
 ```bat
-run_windows.bat
-```
-
-### Linux / macOS
-
-```bash
-./run_linux.sh
+runner.bat
 ```
 
 Then open **http://localhost:8000**.
@@ -324,7 +312,7 @@ The form keeps only what is required:
 
 Instagram's servers fetch the video themselves, so publishing requires a **publicly reachable HTTPS URL** for the episode MP4. The application derives it automatically from however you are browsing the UI:
 
-* Locally: run `run_windows.bat` with cloudflared installed — the script auto-starts a quick tunnel and prints the public URL. Browse the app through that URL.
+* Locally: run `runner.bat` with cloudflared installed — the script auto-starts a quick tunnel and prints the public URL. Browse the app through that URL.
 * On RunPod: expose port 8000 as an HTTP port and browse through the provided `https://<pod-id>-8000.proxy.runpod.net` URL.
 
 If the derived host is `localhost`, the server logs a warning and publish failures include the exact unreachable URL for diagnosis.
