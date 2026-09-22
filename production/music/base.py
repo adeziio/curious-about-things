@@ -59,13 +59,18 @@ class MusicProvider:
     def fetch(
         self,
         mood_tags,
-        destination_dir
+        destination_dir,
+        content=None
     ):
 
         """
         Selects and downloads a track suitable for the given mood
         tags (a list of lowercase words, possibly empty) into
-        destination_dir. Returns a metadata dict:
+        destination_dir. content is the optional episode content
+        dict (title/summary/narration) used to match the track's
+        energy to the video - no history is tracked, so the same
+        track may be picked back to back; selection is pure random
+        among energy-compatible tracks. Returns a metadata dict:
 
             {
                 "provider": "...",

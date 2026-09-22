@@ -9,7 +9,9 @@
         "cinematic",
         "inspiring",
         "calm",
-        "piano"
+        "piano",
+        "mysterious",
+        "upbeat"
     ],
 
     "preferred_tags": [
@@ -32,7 +34,7 @@
         "chill"
     ],
 
-    "max_genre_pages": 2,
+    "max_genre_pages": 4,
     "request_timeout_seconds": 30,
     "download_timeout_seconds": 180
 }

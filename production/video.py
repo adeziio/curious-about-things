@@ -585,7 +585,13 @@ class ProductionPipeline:
                 mood_tags,
                 episode_directory
                 /
-                "music"
+                "music",
+                content
+                if isinstance(
+                    content,
+                    dict
+                )
+                else None
             )
 
         except Exception as error:
