@@ -66,7 +66,9 @@ class VideoProvider:
         self,
         query,
         destination_dir,
-        max_videos=3
+        max_videos=3,
+        downloaded_ids=None,
+        downloaded_hashes=None,
     ):
 
         """
@@ -82,6 +84,13 @@ class VideoProvider:
         Implementations must raise VideoProviderError when
         `max_videos` clips cannot be delivered - callers fail the
         run instead of continuing with a partial result.
+
+        Uniqueness: `downloaded_ids` (provider video ids) and
+        `downloaded_hashes` (SHA-256 of downloaded bytes) are
+        optional episode-wide mutable sets shared across queries.
+        They are updated in place so later queries never reuse
+        content fetched by earlier ones. Hash tracking is what
+        catches identical footage served under different ids.
         """
 
         raise NotImplementedError

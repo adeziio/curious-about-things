@@ -4,6 +4,7 @@ import time
 import json
 import random
 import glob
+import hashlib
 import shutil
 import subprocess
 
@@ -70,7 +71,7 @@ class PexelsVideoProvider(VideoProvider):
         if not self._flag("enabled", True):
             raise VideoProviderError("Pexels disabled.")
 
-    def fetch(self, query, destination_dir, max_videos=2, downloaded_ids=None):
+    def fetch(self, query, destination_dir, max_videos=2, downloaded_ids=None, downloaded_hashes=None):
         """Search Pexels with orientation + 4K via URL params, download
         random clips by hovering each video card.
 
@@ -80,12 +81,27 @@ class PexelsVideoProvider(VideoProvider):
         them, only the missing remainder is downloaded and the new
         clips are numbered after the existing ones.
 
+        Unique: every new clip is guaranteed unique by content (SHA-256) -
+        not just by Pexels video id. The same footage can appear under
+        different Pexels pages/ids, so id-only tracking still allows
+        byte-identical duplicates across folders. `downloaded_ids`
+        (Pexels ids) and `downloaded_hashes` (content hashes) are
+        episode-wide mutable sets shared across queries: they are
+        updated in place as clips are kept, so later queries never
+        re-download content fetched by earlier ones. Old clips already
+        on disk are NEVER deleted - only a freshly downloaded file
+        whose hash is already known is deleted (it is the "latest"
+        file, so no numbering gap is left) and a different card is
+        tried instead.
+
         Strict: exactly `max_videos` clips are guaranteed on return.
         Any failure raises VideoProviderError - a partial result is
         never returned.
         """
         if downloaded_ids is None:
             downloaded_ids = set()
+        if downloaded_hashes is None:
+            downloaded_hashes = set()
         query = str(query or "").strip()
         if not query:
             raise VideoProviderError(
@@ -101,15 +117,26 @@ class PexelsVideoProvider(VideoProvider):
 
         existing = self._existing_clips(destination_dir)
 
+        # NEVER delete old clips: files already on disk are always kept,
+        # no matter what. Their content hashes are seeded into the
+        # episode-wide `downloaded_hashes` set so later downloads can be
+        # compared against them - but if an on-disk clip turns out to be
+        # a duplicate of an earlier query, it stays. Only a freshly
+        # downloaded clip is ever deleted (see _download_random_videos),
+        # because that is the "latest" file and no numbering gap is left
+        # behind. The folder simply has to end up with `max_videos`
+        # clips; gaps in numbering (e.g. a lone clip_002) are fine.
+        for clip_path in existing:
+            content_hash = self._file_hash(clip_path)
+            if content_hash:
+                downloaded_hashes.add(content_hash)
+
         if len(existing) >= max_videos:
             self.notify(
                 f"Already have {len(existing)} clips for '{query}'; "
                 "skipping download"
             )
-            return [
-                str(clip_path)
-                for clip_path in existing[:max_videos]
-            ]
+            return [str(clip_path) for clip_path in existing]
 
         missing = max_videos - len(existing)
 
@@ -119,6 +146,13 @@ class PexelsVideoProvider(VideoProvider):
                 f"downloading {missing} more"
             )
 
+        # New downloads continue after the highest clip number already
+        # on disk, so a gap (e.g. a lone clip_002 with no clip_001)
+        # never causes an overwrite: the next download becomes clip_003,
+        # then clip_004, and so on. The folder only has to end up with
+        # `max_videos` clips; the numbers themselves just need to be
+        # unique within the folder.
+        existing_count = self._next_clip_index(existing) - 1
         self.notify(f"Searching Pexels for: {query}")
         downloaded = []
         driver = None
@@ -149,7 +183,8 @@ class PexelsVideoProvider(VideoProvider):
             self._human_pause()
             downloaded = self._download_random_videos(
                 driver, destination_dir, missing, downloaded_ids, search_url,
-                query=query, existing_count=len(existing)
+                query=query, existing_count=existing_count,
+                downloaded_hashes=downloaded_hashes,
             )
         except VideoProviderError:
             raise
@@ -172,7 +207,7 @@ class PexelsVideoProvider(VideoProvider):
                 f"Only {len(result)}/{max_videos} clips downloaded "
                 f"for '{query}'"
             )
-        return result[:max_videos]
+        return result
 
     @staticmethod
     def _existing_clips(destination_dir):
@@ -200,6 +235,53 @@ class PexelsVideoProvider(VideoProvider):
         clips.sort(key=lambda path: path.name)
         return clips
 
+    @staticmethod
+    def _next_clip_index(clips):
+        """Next free clip number: one past the highest clip_NNN already
+        on disk (1 when the folder is empty).
+
+        Count-based numbering (`len(existing) + 1`) breaks whenever a
+        gap exists - e.g. a lone clip_002 with no clip_001 would make
+        the next download clip_002 again and overwrite the kept clip.
+        Scanning the actual numbers keeps every filename unique no
+        matter which clips were pruned or deleted.
+        """
+        highest = 0
+        for clip_path in clips:
+            match = re.search(r"(\d+)", Path(clip_path).stem)
+            if not match:
+                continue
+            try:
+                highest = max(highest, int(match.group(1)))
+            except ValueError:
+                pass
+        return highest + 1
+
+    @staticmethod
+    def _file_hash(path):
+        """SHA-256 of a downloaded clip, or "" when it cannot be read.
+
+        Hashed in chunks so multi-MB clips never load fully into memory.
+        """
+        try:
+            digest = hashlib.sha256()
+            with open(path, "rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            return digest.hexdigest()
+        except OSError:
+            return ""
+
+    @staticmethod
+    def _clip_id_from_file(path):
+        """Recover the Pexels video id for a clip kept from a previous
+        run. Resume downloads rename files to clip_NNN.mp4, so the id is
+        not recoverable from the filename - the id lives only in the
+        in-memory `downloaded_ids` set and is not persisted to disk.
+        Currently always returns "" (kept as a hook in case the mapping
+        is persisted later). Content-hash seeding is what actually
+        protects resume + cross-query uniqueness."""
+        return ""
 
     def _search_url(self, query):
         """Filtered search URL - orientation + resolution as query params,
@@ -247,7 +329,7 @@ class PexelsVideoProvider(VideoProvider):
 
     def _download_random_videos(
         self, driver, destination_dir, max_videos, downloaded_ids, search_url,
-        query="", existing_count=0
+        query="", existing_count=0, downloaded_hashes=None
     ):
         """Steps 4-6: Pick random video cards on the results page and
         download the clips. After a browser download, recover a clean
@@ -255,11 +337,24 @@ class PexelsVideoProvider(VideoProvider):
         the next card. `existing_count` shifts clip numbering so resumed
         downloads do not overwrite clips kept from a previous run.
 
+        Unique: `downloaded_ids` skips Pexels pages already used, while
+        `downloaded_hashes` (episode-wide content hashes, updated in
+        place) catches the case the IDs miss - the same footage served
+        under different Pexels pages/ids. Only the freshly downloaded
+        ("latest") file is ever deleted when its SHA-256 is already
+        known - old clips on disk are never touched - and a different
+        card is tried instead, so the folder always ends up with
+        `max_videos` unique clips.
+
         Strict: every clip must download. Any failure raises
         VideoProviderError so the run fails loudly instead of silently
         continuing with fewer clips than requested."""
+        if downloaded_hashes is None:
+            downloaded_hashes = set()
         downloaded = []
         main_handle = driver.current_window_handle
+        duplicate_skips = 0
+        max_duplicate_skips = max(20, max_videos * 5)
         while len(downloaded) < max_videos:
             card, href, video_id = self._pick_random_card(
                 driver, downloaded_ids
@@ -284,6 +379,34 @@ class PexelsVideoProvider(VideoProvider):
                     )
                 if video_id:
                     downloaded_ids.add(video_id)
+                content_hash = self._file_hash(clip_path)
+                if content_hash and content_hash in downloaded_hashes:
+                    # Same bytes already used in this episode (possibly
+                    # under a different Pexels id/folder) - drop it and
+                    # try a different card. Clip numbering is derived
+                    # from len(downloaded), so the next attempt reuses
+                    # this filename and leaves no numbering gap.
+                    try:
+                        clip_path.unlink()
+                    except OSError:
+                        pass
+                    duplicate_skips += 1
+                    self.notify(
+                        f"Skipping duplicate clip from {href} "
+                        f"(same content already used in this episode)."
+                    )
+                    if duplicate_skips > max_duplicate_skips:
+                        raise VideoProviderError(
+                            f"Could not find enough unique clips for "
+                            f"'{query}': {duplicate_skips} downloads were "
+                            f"duplicates of footage already used in this "
+                            f"episode. Try a broader search query."
+                        )
+                    if used_browser:
+                        self._recover_page(driver, search_url, main_handle, query)
+                    continue
+                if content_hash:
+                    downloaded_hashes.add(content_hash)
                 downloaded.append(str(clip_path))
                 self.notify(f"Saved clip: {clip_name}")
                 self._human_pause()
