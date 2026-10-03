@@ -994,11 +994,19 @@ class PexelsVideoProvider(VideoProvider):
         The clip is streamed to a `.part` file and only moved into place
         once it has arrived in full, so an interrupted transfer can never
         be mistaken for a finished clip (`existing clips` ignores
-        `.part` files)."""
+        `.part` files).
+
+        The response is always closed, including on the failure paths.
+        A streamed response holds its socket until it is closed, and a
+        run downloads many clips in sequence - leaking one socket per
+        failed transfer is enough to exhaust the socket resources when
+        two projects download at the same time (WinError 10055).
+        """
         download_timeout = self._seconds("download_timeout_seconds", 300)
         output_path = Path(output_path)
         partial_path = output_path.with_name(f"{output_path.name}.part")
         partial_path.unlink(missing_ok=True)
+        response = None
         try:
             response = requests.get(
                 url,
@@ -1038,6 +1046,12 @@ class PexelsVideoProvider(VideoProvider):
         except Exception as error:
             partial_path.unlink(missing_ok=True)
             raise VideoProviderError(f"Download failed: {error}") from error
+        finally:
+            if response is not None:
+                try:
+                    response.close()
+                except Exception:
+                    pass
         return output_path
 
     @staticmethod
@@ -1246,7 +1260,45 @@ class PexelsVideoProvider(VideoProvider):
         return self._flag("attach_to_existing_chrome", False)
 
     def _debugging_address(self):
-        address = str(self._setting("debugging_address", "")).strip()
+        """Address of the Chrome instance this project attaches to.
+
+        runner.bat exports PEXELS_DEBUG_HOST/PEXELS_DEBUG_PORT so the
+        browser each project launches is unambiguously its own. That
+        matters when several projects run at once: Selenium attaches to
+        one browser instance, and `Browser.setDownloadBehavior` below is
+        a browser-wide setting, so two jobs sharing a browser would
+        redirect each other's downloads mid-run. The environment wins
+        over config/pexels.json for the same reason.
+        """
+        host = str(
+            os.environ.get(
+                "PEXELS_DEBUG_HOST",
+                ""
+            )
+            or ""
+        ).strip()
+
+        port = str(
+            os.environ.get(
+                "PEXELS_DEBUG_PORT",
+                ""
+            )
+            or ""
+        ).strip()
+
+        if port:
+
+            return (
+                f"{host or '127.0.0.1'}:{port}"
+            )
+
+        address = str(
+            self._setting(
+                "debugging_address",
+                ""
+            )
+        ).strip()
+
         return address or "127.0.0.1:9222"
 
     def _debugging_port(self):

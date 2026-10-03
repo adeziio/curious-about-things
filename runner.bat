@@ -28,7 +28,18 @@ if errorlevel 1 (
 echo Python virtual environment activated.
 echo.
 
+REM ---------------------------------------------------------------------------
+REM Ollama
+REM
+REM Ollama is a single shared server on a fixed port, so several projects
+REM point at the same instance. It must therefore be REUSED, never killed:
+REM stopping it would abort any generation running in another project.
+REM Only start it when nothing answers yet, and allow more than one
+REM simultaneous request so parallel projects do not queue behind
+REM each other.
+
 set "OLLAMA_URL=http://localhost:11434"
+set "OLLAMA_PARALLEL=2"
 
 echo Checking Ollama...
 
@@ -37,27 +48,30 @@ where ollama >nul 2>&1
 if errorlevel 1 (
     echo.
     echo ERROR: Ollama is not installed.
-    echo Please run install_windows.bat first.
+    echo Please run setup.bat first.
     exit /b 1
 )
 
 echo Ollama detected.
-echo.
 
-echo Stopping existing Ollama processes...
+REM Is a server already answering? Reuse it rather than restarting a
+REM shared service out from under the other running projects.
 
-taskkill /F /IM ollama.exe >nul 2>&1
-taskkill /F /IM ollama_llama_server.exe >nul 2>&1
-taskkill /F /IM llama-server.exe >nul 2>&1
+curl -s --max-time 2 "%OLLAMA_URL%/api/tags" >nul 2>&1
 
-timeout /t 3 /nobreak >nul
-
-echo Existing Ollama processes stopped.
-echo.
+if not errorlevel 1 (
+    echo Ollama already running - reusing the shared instance.
+    goto :ollama_ready
+)
 
 echo Starting Ollama...
 
+REM OLLAMA_NO_CLOUD keeps inference local; OLLAMA_NUM_PARALLEL lets two
+REM projects generate at the same time instead of one waiting on the
+REM other. Both apply to the server this script starts.
+
 set "OLLAMA_NO_CLOUD=1"
+set "OLLAMA_NUM_PARALLEL=%OLLAMA_PARALLEL%"
 
 start "" /B cmd /c "ollama serve >nul 2>&1"
 
@@ -126,6 +140,10 @@ REM The Selenium-based stock footage provider attaches to this browser
 REM instead of launching its own Chrome. A real, visible browser session
 REM passes Pexels' Cloudflare checks reliably, and the persistent profile
 REM keeps that clearance between runs.
+REM
+REM The debugging port is THIS project's own: two projects sharing one
+REM browser would fight over it, because the download redirect the
+REM provider applies is a browser-wide DevTools setting.
 
 set "PEXELS_DEBUG_HOST=127.0.0.1"
 set "PEXELS_DEBUG_PORT=9222"
@@ -164,6 +182,17 @@ if "%CHROME_EXE%"=="" (
     goto :after_chrome
 )
 
+REM Is a Chrome already listening on this project's port? If so it is
+REM this project's own browser from an earlier run - reuse it rather
+REM than starting a second one that Chrome would only forward to.
+
+curl -s --max-time 2 "http://%PEXELS_DEBUG_HOST%:%PEXELS_DEBUG_PORT%/json/version" >nul 2>&1
+
+if not errorlevel 1 (
+    echo Pexels Chrome already listening on port %PEXELS_DEBUG_PORT% - reusing it.
+    goto :after_chrome
+)
+
 start "Pexels Chrome" /MIN "%CHROME_EXE%" ^
     --remote-debugging-port=%PEXELS_DEBUG_PORT% ^
     --remote-allow-origins=* ^
@@ -182,13 +211,33 @@ timeout /t 3 /nobreak >nul
 :after_chrome
 
 REM ---------------------------------------------------------------------------
-REM Cloudflare tunnel
+REM Server port and Cloudflare tunnel
 REM
 REM Instagram needs a publicly reachable URL to pull the video from, so a
 REM temporary tunnel exposes the local server. Local-only mode still works
 REM for everything except Instagram publishing.
+REM
+REM Each project gets its own port and therefore its own tunnel URL, so
+REM the two can run side by side. config/server.json -> port is the
+REM single source of truth; APP_PORT passes it to the Python server.
+REM Read the port once here so this script and web/server.py can never
+REM disagree. APP_PORT set in the environment (e.g. by run-all.bat) wins
+REM over the config file.
 
-set "SERVER_PORT=8000"
+set "SERVER_PORT="
+
+if not "%APP_PORT%"=="" (
+    set "SERVER_PORT=%APP_PORT%"
+) else (
+    for /f "usebackq delims=" %%p in (`python -c "import json,pathlib;print(json.loads(pathlib.Path('config/server.json').read_text(encoding='utf-8')).get('port',''))"`) do set "SERVER_PORT=%%p"
+)
+
+if "%SERVER_PORT%"=="" set "SERVER_PORT=8000"
+
+set "APP_PORT=%SERVER_PORT%"
+
+echo Server port: %SERVER_PORT%
+echo.
 
 set "TUNNEL_LOG=%TEMP%\curious_tunnel_log.txt"
 
@@ -236,7 +285,7 @@ echo Starting Cloudflare tunnel...
 
 del "%TUNNEL_LOG%" >nul 2>&1
 
-start "curious-cloudflared" /MIN cmd /c ""%CLOUDFLARED_EXE%" tunnel --url http://localhost:%SERVER_PORT% > "%TUNNEL_LOG%" 2>&1"
+start "curious-cloudflared" /MIN cmd /c ""%CLOUDFLARED_EXE%" tunnel --url http://localhost:%SERVER_PORT% --no-autoupdate > "%TUNNEL_LOG%" 2>&1"
 
 echo Waiting for the public tunnel URL...
 
@@ -291,13 +340,48 @@ REM Clear the Ollama-specific environment variable before launching.
 
 set "OLLAMA_NO_CLOUD="
 
+REM ---------------------------------------------------------------------------
+REM Open the UI in a browser automatically.
+REM
+REM The tunnel URL is known before the server starts listening, so this runs
+REM in the background and waits for the port to accept a connection before
+REM opening anything - otherwise the browser would show a connection error.
+REM
+REM Set APP_OPEN_BROWSER=0 to skip this (useful over SSH, or when you only
+REM want the console).
+
+if not defined APP_OPEN_BROWSER set "APP_OPEN_BROWSER=1"
+
+if "%APP_OPEN_BROWSER%"=="1" (
+
+    if exist "%~dp0scripts\open_in_browser.ps1" (
+
+        start "" /B powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\open_in_browser.ps1" -Port %SERVER_PORT% -Url "%PUBLIC_URL%" -TimeoutSeconds 120
+
+    ) else (
+
+        echo NOTE: scripts\open_in_browser.ps1 not found - skipping auto-open.
+        echo Open manually: %PUBLIC_URL%
+        echo.
+
+    )
+
+)
+
 python -m web.server
 
 set "EXIT_CODE=%errorlevel%"
 
-REM Stop the tunnel started earlier (harmless if none was started).
+REM ---------------------------------------------------------------------------
+REM Stop only THIS project's tunnel.
+REM
+REM Every running project has its own cloudflared process, so killing
+REM them by image name would tear down the tunnels belonging to the
+REM other projects. scripts\stop_tunnel.ps1 matches on this project's
+REM port instead - each tunnel's command line contains the local port
+REM it serves. It is a no-op when no tunnel is running.
 
-taskkill /F /IM cloudflared.exe >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\stop_tunnel.ps1" -Port %SERVER_PORT%
 
 echo.
 
