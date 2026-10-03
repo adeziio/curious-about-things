@@ -9,7 +9,13 @@ import shutil
 import subprocess
 
 from pathlib import Path
-from urllib.parse import quote, urlencode
+from urllib.parse import (
+    parse_qsl,
+    quote,
+    urlencode,
+    urlsplit,
+    urlunsplit,
+)
 
 import requests
 
@@ -177,7 +183,7 @@ class PexelsVideoProvider(VideoProvider):
             # be mistaken for a page whose filters were dropped), and a
             # rewrite to an unfiltered results page is still caught here
             # before anything is downloaded.
-            self._verify_search_filters(driver, query)
+            self._ensure_search_filters(driver, query)
             # Give the page a beat to settle (and Pexels' client-side
             # filters a moment to apply) before any card is picked.
             self._human_pause()
@@ -293,39 +299,199 @@ class PexelsVideoProvider(VideoProvider):
         "/search/videos/microphone%20close%20up/" - and that rewrite
         DROPS the orientation and resolution_name query params,
         silently turning the search into an unfiltered one."""
-        orientation = str(self._setting("orientation", "portrait")).strip().lower()
+        search_term = quote(self._search_term(query))
+        return (
+            f"{self._base_url()}/search/videos/{search_term}/"
+            f"?{urlencode(self._filter_params())}"
+        )
+
+    @staticmethod
+    def _search_term(query):
+        """Path segment for a search query: hyphens become spaces and
+        runs of whitespace collapse to a single space, so the path Pexels
+        is asked for is already in the canonical shape it wants - which
+        is what keeps the filter params attached."""
+        return " ".join(str(query).replace("-", " ").split())
+
+    def _filter_params(self):
+        """The search filters a results page MUST carry, normalized.
+
+        Both are always sent: dropping either one would silently widen
+        the search (any orientation, any resolution), which is exactly
+        what the filter guard refuses to download from."""
+        orientation = str(
+            self._setting("orientation", "portrait")
+        ).strip().lower()
         # Pexels' URL param is "portrait" for vertical videos.
         if orientation in ("vertical", "portrait"):
             orientation = "portrait"
         resolution = str(self._setting("resolution_name", "4K")).strip()
-        params = urlencode({
+        return {
             "orientation": orientation or "portrait",
             "resolution_name": resolution or "4K",
-        })
-        search_term = quote(str(query).replace("-", " "))
-        return f"{self._base_url()}/search/videos/{search_term}/?{params}"
+        }
 
-    def _verify_search_filters(self, driver, query):
-        """Fail loudly if Pexels dropped the orientation/resolution
-        params while loading the results page - an unfiltered search
-        must never be used for downloads.
+    @staticmethod
+    def _url_params(url):
+        """Query params of `url` as a lowercase name -> value map."""
+        try:
+            parts = urlsplit(str(url or ""))
+            pairs = parse_qsl(parts.query, keep_blank_values=True)
+        except ValueError:
+            return {}
+        return {
+            str(name).strip().lower(): str(value).strip().lower()
+            for name, value in pairs
+        }
 
-        Cloudflare's bot-check interstitial is exempt: it is not a
-        search results page at all, so it is skipped here (and the
-        filters are re-checked once the real grid has loaded)."""
+    def _missing_filters(self, url):
+        """Names of the required search filters that `url` lost - empty
+        when every one of them is present with the expected value.
+
+        Values are compared, not just presence: a page that kept
+        `orientation` but downgraded `resolution_name` is as unfiltered
+        as one that lost both, so it has to be caught here too."""
+        present = self._url_params(url)
+        missing = []
+        for name, expected in self._filter_params().items():
+            if present.get(name, "") != str(expected).strip().lower():
+                missing.append(name)
+        return missing
+
+    def _refiltered_url(self, url):
+        """`url` with the required search filters forced back on, keeping
+        whatever path Pexels canonicalized the search to.
+
+        This is the recovery for a load that lost its filters: the page
+        already sits on the CANONICAL results path (Pexels keeps the path
+        and only strips the query string), so re-requesting that same
+        canonical path WITH the params attached is a URL it has no reason
+        to rewrite again - unlike the first request, which was answered
+        with a redirect.
+
+        Returns "" when `url` is not a search results page at all (home
+        page, bot check, error page): there is nothing to re-filter."""
+        try:
+            parts = urlsplit(str(url or ""))
+        except ValueError:
+            return ""
+        if not parts.scheme or not parts.netloc:
+            return ""
+        if "/search/" not in parts.path:
+            return ""
+        path = parts.path if parts.path.endswith("/") else parts.path + "/"
+        params = dict(parse_qsl(parts.query, keep_blank_values=True))
+        params.update(self._filter_params())
+        return urlunsplit(
+            (parts.scheme, parts.netloc, path, urlencode(params), "")
+        )
+
+    @staticmethod
+    def _current_url(driver):
+        try:
+            return str(driver.current_url or "")
+        except Exception:
+            return ""
+
+    def _wait_for_filters(self, driver, timeout=None):
+        """Wait until the required filters are back on the current URL.
+
+        Polled separately from the grid because a recovery navigation can
+        resolve to the unfiltered page again while the grid is still on
+        screen from the previous (unfiltered) load - reading the filters
+        straight after `driver.get` would sample the redirect mid-flight.
+
+        The window is short on purpose: `driver.get` only returns once the
+        page has loaded, and the rewrite that strips the filters is a
+        client-side one that happens right after - so this is a settle
+        wait, not another full page load."""
+        if timeout is None:
+            timeout = self._seconds("filter_settle_seconds", 10)
+        deadline = time.monotonic() + timeout
+        while True:
+            if not self._missing_filters(self._current_url(driver)):
+                return True
+            if self._page_is_challenge(driver):
+                # The bot check replaces the page and is handled by
+                # _ensure_search_filters, not by this wait.
+                return False
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(0.5)
+
+    def _filter_recovery_attempts(self):
+        """How many times a filter-stripped load may be retried."""
+        try:
+            attempts = int(self._setting("filter_recovery_attempts", 2))
+        except (TypeError, ValueError):
+            return 2
+        return max(0, attempts)
+
+
+    def _ensure_search_filters(self, driver, query):
+        """Guarantee the grid on screen is a FILTERED one, or fail.
+
+        Pexels regularly answers a filtered search request by redirecting
+        to the same results page with the whole query string stripped -
+        the grid then loads unfiltered (any orientation, any resolution)
+        even though the request asked for portrait 4K. Downloading from it
+        silently ruins the portrait/4K output, so the filters are verified
+        against the URL that actually loaded.
+
+        Recovery instead of an immediate failure: the canonical path
+        Pexels landed on is re-requested WITH the filters attached
+        (`_refiltered_url`). The redirect that stripped them was keyed on
+        the original path, so the canonical path normally survives it.
+        Every retry re-waits for the filters rather than for a grid that
+        may still be the unfiltered one.
+
+        Cloudflare's bot-check interstitial is exempt: it is not a search
+        results page at all, so it is skipped here (and the filters are
+        re-checked once the real grid has loaded).
+
+        Strict: if the filters cannot be restored, the run fails instead
+        of downloading from an unfiltered page."""
         if self._page_is_challenge(driver):
             self.notify(
                 "Bot check page (no results yet) - filters are checked "
                 "again once the search results load"
             )
             return
-        final_url = str(driver.current_url or "")
-        if "orientation=" not in final_url:
-            raise VideoProviderError(
-                f"Pexels dropped the search filters while loading "
-                f"'{query}' (landed on: {final_url})"
+        attempts = self._filter_recovery_attempts()
+        landed = self._current_url(driver)
+        missing = self._missing_filters(landed)
+        for attempt in range(attempts + 1):
+            if not missing:
+                return
+            retry_url = self._refiltered_url(landed)
+            # No recovery URL (not a results page) or the final attempt
+            # means there is nothing left to try, so the guard fails loudly
+            # instead of spinning. Re-requesting `search_url` IS allowed:
+            # the redirect that stripped the filters is a one-time
+            # canonicalization, so the same canonical path + params is
+            # normally served as-is on the retry.
+            if attempt >= attempts or not retry_url:
+                break
+            self.notify(
+                f"Pexels dropped the {', '.join(missing)} filter(s) while "
+                f"loading '{query}' (landed on: {landed}); reloading the "
+                "canonical results page with the filters re-applied"
             )
-
+            driver.get(retry_url)
+            if self._wait_for_filters(driver):
+                if not self._wait_for_grid(driver):
+                    raise VideoProviderError(
+                        self._grid_failure_message(driver, query)
+                    )
+            landed = self._current_url(driver)
+            missing = self._missing_filters(landed)
+        raise VideoProviderError(
+            f"Pexels dropped the search filters ({', '.join(missing)}) "
+            f"while loading '{query}' (landed on: {landed}) and reloading "
+            "them did not help; refusing to download from an unfiltered "
+            "results page. Try a broader search query or a lower "
+            "resolution_name in config/pexels.json."
+        )
 
     def _download_random_videos(
         self, driver, destination_dir, max_videos, downloaded_ids, search_url,
@@ -476,7 +642,7 @@ class PexelsVideoProvider(VideoProvider):
             raise VideoProviderError(
                 self._grid_failure_message(driver, query or "next download")
             )
-        self._verify_search_filters(driver, query or "next download")
+        self._ensure_search_filters(driver, query or "next download")
         self._human_pause()
 
     def _wait_for_grid(self, driver):
