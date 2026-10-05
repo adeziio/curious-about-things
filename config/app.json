@@ -2,7 +2,7 @@
     "video_provider": "pexels",
     "music_provider": "freesafemusic",
     "shorts": {
-        "target_duration_seconds": 50,
+        "target_duration_seconds": 60,
         "resolution": {
             "width": 1080,
             "height": 1920

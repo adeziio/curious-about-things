@@ -8,52 +8,108 @@ from ai.providers.ollama_provider import OllamaProvider
 class ContentGenerationError(RuntimeError):
     pass
 
-# JSON schema passed to Ollama's structured-output mode. It grammar-enforces
-# the response shape so the model cannot return short narrations: exactly 14
-# narration sentences and 14 visual queries.
-NARRATION_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "title": {"type": "string"},
-        "summary": {"type": "string"},
-        "narration_sentences": {
-            "type": "array",
-            "minItems": 14,
-            "maxItems": 14,
-            # Per-sentence maxLength is removed on purpose: a hard char cap is
-            # what caused the "the. space" mid-thought truncation in episode 001
-            # (a ~93-char sentence was forced to stop at the 75-char boundary, so
-            # the rest spilled into the next array item and got auto-punctuated).
-            # The real length control is the prompt's per-sentence word blueprint plus the
-            # 14-item count; minLength: 30 (~5 words) is only an empty/tiny-string
-            # floor, not a truncation bound. _merge_truncated_sentences +
-            # final check #8 are the safety net if a sentence still splits
-            # across two items.
-            "items": {"type": "string", "minLength": 30},
-        },
-        "mood": {"type": "string"},
-        # Exactly 14 visuals, one per narration sentence, for a clean 1:1
-        # mapping sized by app.shorts.target_duration_seconds (14 clips
-        # cycling across the narration timeline). Keeps narration and visuals
-        # aligned so a 14-sentence script always has a matching visual.
-        # Each visual has ONLY a search_query — no context field. The visuals
-        # array is ordered to match the narration sentence order, so sentence N
-        # always maps to visual N (and its downloaded clips).
-        "visuals": {
-            "type": "array",
-            "minItems": 14,
-            "maxItems": 14,
-            "items": {
-                "type": "object",
-                "properties": {
-                    "search_query": {"type": "string"},
+# How long each visual should cover: 60 / 14 = the 14 segments per episode
+# this project was tuned to. The only duration setting is
+# app.json -> shorts.target_duration_seconds, and the segment count is
+# derived from it, so there is no second number to keep in sync.
+SECONDS_PER_VISUAL = 60 / 14
+
+DEFAULT_TARGET_SECONDS = 60
+
+# A floor on the sentence blueprint, not a tuning setting: sentence_blueprint()
+# spends 7 sentences on fixed beats (hook, setup, reveal, twist, closing), so
+# fewer than 8 would leave no room for escalation. Episodes are written to fill
+# the target duration, so this only bites on unusually short targets.
+MIN_SEGMENT_COUNT = 8
+MAX_SEGMENT_COUNT = 40
+
+# Sentences the blueprint always spends on the same named beats, whatever the
+# configured count is. Everything left over becomes escalation.
+BLUEPRINT_FIXED_SENTENCES = 7
+
+
+def sentence_blueprint(segment_count):
+    """
+    Split the episode's sentences into named beats, scaled to segment_count.
+
+    Returns (description, spans_multiple_sentences) pairs so the prompt can
+    phrase the word target correctly. At the default 14 this reproduces the
+    original hand-written blueprint exactly: 1 hook, 2 setup, 7 escalation,
+    2 reveal, 1 twist, 1 closing.
+    """
+
+    escalation = max(1, segment_count - BLUEPRINT_FIXED_SENTENCES)
+    last_escalation = 3 + escalation
+    reveal_last = last_escalation + 2
+    twist = reveal_last + 1
+    closing = twist + 1
+    return [
+        ("Sentence 1: the hook - a surprising claim or vivid moment", False),
+        ("Sentences 2-3: the setup - establish the situation so the viewer cares", True),
+        (f"Sentences 4-{last_escalation}: escalation - at least 4 different verified "
+         "facts, each fully developed in its own sentence, with detail that deepens "
+         "the intrigue", True),
+        (f"Sentences {last_escalation + 1}-{reveal_last}: the surprising reveal and "
+         "the connection to the viewer", True),
+        (f"Sentence {twist}: the twist - a memorable observation or unexpected angle", False),
+        (f"Sentence {closing}: the closing - a satisfying final thought or a natural "
+         "curiosity question", False),
+    ]
+
+
+def build_schema(segment_count):
+    """
+    JSON schema passed to Ollama's structured-output mode. It grammar-enforces
+    the response shape so the model cannot return short narrations: exactly
+    segment_count narration sentences and segment_count visual queries.
+
+    Built per call instead of held as a module constant because the count
+    comes from config.
+    """
+
+    return {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "summary": {"type": "string"},
+            "narration_sentences": {
+                "type": "array",
+                "minItems": segment_count,
+                "maxItems": segment_count,
+                # Per-sentence maxLength is removed on purpose: a hard char cap is
+                # what caused the "the. space" mid-thought truncation in episode 001
+                # (a ~93-char sentence was forced to stop at the 75-char boundary, so
+                # the rest spilled into the next array item and got auto-punctuated).
+                # The real length control is the prompt's per-sentence word blueprint plus the
+                # item count; minLength: 30 (~5 words) is only an empty/tiny-string
+                # floor, not a truncation bound. _merge_truncated_sentences +
+                # final check #8 are the safety net if a sentence still splits
+                # across two items.
+                "items": {"type": "string", "minLength": 30},
+            },
+            "mood": {"type": "string"},
+            # Exactly one visual per narration sentence, for a clean 1:1
+            # mapping sized by app.shorts.target_duration_seconds (the clips
+            # cycle across the narration timeline). Keeps narration and visuals
+            # aligned so the script always has a matching visual.
+            # Each visual has ONLY a search_query — no context field. The visuals
+            # array is ordered to match the narration sentence order, so sentence N
+            # always maps to visual N (and its downloaded clips).
+            "visuals": {
+                "type": "array",
+                "minItems": segment_count,
+                "maxItems": segment_count,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "search_query": {"type": "string"},
+                    },
+                    "required": ["search_query"],
                 },
-                "required": ["search_query"],
             },
         },
-    },
-    "required": ["title", "summary", "narration_sentences", "mood", "visuals"],
-}
+        "required": ["title", "summary", "narration_sentences", "mood", "visuals"],
+    }
 
 # Function words that cannot end a sentence. A narration item that stops
 # on one of these was cut in half by the structured output ("...connected
@@ -86,6 +142,26 @@ class ContentGenerator(BaseAIService):
             return ""
         return "\n".join(f"- {str(v).strip()}" for v in values if str(v).strip())
 
+    def segment_count(self):
+        """
+        How many spoken segments (and therefore visuals) an episode has.
+
+        Derived from app.shorts.target_duration_seconds alone - one visual
+        per SECONDS_PER_VISUAL of narration - so changing the target duration
+        changes the segment count with nothing else to update. The words per
+        segment come from that same target duration.
+        """
+
+        shorts = self.config.get("app", {}).get("shorts", {})
+        try:
+            target_seconds = float(
+                shorts.get("target_duration_seconds", DEFAULT_TARGET_SECONDS)
+            )
+        except (TypeError, ValueError):
+            target_seconds = DEFAULT_TARGET_SECONDS
+        count = int(round(target_seconds / SECONDS_PER_VISUAL))
+        return max(MIN_SEGMENT_COUNT, min(count, MAX_SEGMENT_COUNT))
+
     def build_prompt(self, instruction=None):
         c = self.generation_config
         ch = self.channel_config.get("channel", {})
@@ -105,12 +181,16 @@ class ContentGenerator(BaseAIService):
         word_target = int(target_seconds * wps)
         word_min = int(word_target * 0.85)
         word_max = int(word_target * 1.15)
-        per_sentence = word_target // 14
+        segment_count = self.segment_count()
+        per_sentence = word_target // segment_count
         wps_min = max(9, per_sentence - 1)
         wps_max = per_sentence + 3
         target_seconds_str = str(int(target_seconds))
+        segment_count_str = str(segment_count)
         narration_rules = narration_rules.replace("{{TARGET_SECONDS}}", target_seconds_str)
         visual_rules = visual_rules.replace("{{TARGET_SECONDS}}", target_seconds_str)
+        narration_rules = narration_rules.replace("{{SEGMENT_COUNT}}", segment_count_str)
+        visual_rules = visual_rules.replace("{{SEGMENT_COUNT}}", segment_count_str)
         instruction = str(instruction or "").strip()
         instruction_section = ""
         if instruction:
@@ -121,19 +201,17 @@ class ContentGenerator(BaseAIService):
         # start of the prompt most) as an explicit sentence-by-sentence
         # blueprint - LLMs follow sentence counts far more reliably than word
         # counts, and must be stopped from stacking tiny fragments.
+        blueprint = "".join(
+            f"- {description} ({wps_min}-{wps_max} {'words each' if plural else 'words'}).\n"
+            for description, plural in sentence_blueprint(segment_count)
+        )
         length_requirement = (
             "ABSOLUTE REQUIREMENT - NARRATION LENGTH\n"
-            f"Write the narration as EXACTLY 14 complete sentences, each sentence {wps_min}-{wps_max} words "
+            f"Write the narration as EXACTLY {segment_count} complete sentences, each sentence {wps_min}-{wps_max} words "
             f"long, totaling {word_min}-{word_max} words. Never write strings of short fragments - every sentence "
             f"must be a full, substantial spoken thought. A script outside {word_min}-{word_max} words is a FAILED response. "
             "Follow this blueprint exactly:\n"
-            f"- Sentence 1: the hook - a surprising claim or vivid moment ({wps_min}-{wps_max} words).\n"
-            f"- Sentences 2-3: the setup - establish the situation so the viewer cares ({wps_min}-{wps_max} words each).\n"
-            f"- Sentences 4-10: escalation - at least 4 different verified facts, each fully "
-            f"developed in its own sentence, with detail that deepens the intrigue ({wps_min}-{wps_max} words each).\n"
-            f"- Sentences 11-12: the surprising reveal and the connection to the viewer ({wps_min}-{wps_max} words each).\n"
-            f"- Sentence 13: the twist - a memorable observation or unexpected angle ({wps_min}-{wps_max} words).\n"
-            f"- Sentence 14: the closing - a satisfying final thought or a natural curiosity question ({wps_min}-{wps_max} words).\n"
+            f"{blueprint}"
         )
         topic_selection = (
             "RANDOM CATEGORY DRAW (MANDATORY STEP 1)\\n"
@@ -167,17 +245,17 @@ class ContentGenerator(BaseAIService):
             "\n\nVARIETY REQUIREMENTS (CRITICAL)\n"            "Every episode must feel distinct. Do not fall into repeated templates for topic, title, or opening.\n"            "- TOPIC: Draw a genuinely random category. Do not default to the viewer's own body, biology, or health just because they feel personal - most episodes should be about something OUTSIDE the viewer (animals, space, history, objects, places, ideas, phenomena).\n"            "- TITLE: Never reuse the same title formula. Vary between a question, a bold claim, a How/Why phrase, a surprising statement, a number, or a short intriguing phrase. Banished templates: The Secret Life of..., The Hidden Truth About..., The Untold Story of..., What Happens When..., Everything You Know About... is Wrong.\n"            "- OPENING: The first sentence must not follow a formula. Do NOT open with Your X does more than you realize, You never noticed..., Most people do not know..., or Did you know.... Each hook should land differently - a vivid scene, a counterintuitive claim, a surprising number, a question, a historical moment, a weird comparison.\n"            "- NARRATIVE ARC: Do not force every episode through the same emotional beats. Some should build dread, others wonder, others humor, others awe. Let the topic dictate the arc.\n"            "- MOOD: Choose a mood that fits THIS topic. Do not default to curious mysterious every time.\n"
             '- "title": a short, clickable video title. Must be a properly punctuated phrase with correct capitalization, spacing, and any necessary punctuation (apostrophes, commas, periods). No run-on fragments or missing punctuation.\n'
             '- "summary": a one-sentence teaser of the episode. Must be a single, complete, properly punctuated sentence with correct capitalization, spacing, and terminal punctuation. No run-on sentences or missing punctuation between clauses.\n'
-            '- "narration_sentences": an array of EXACTLY 14 strings - the narration split '
-            f'into its 14 sentences. Each string is one complete spoken sentence of {wps_min}-{wps_max} words. '
+            f'- "narration_sentences": an array of EXACTLY {segment_count} strings - the narration split '
+            f'into its {segment_count} sentences. Each string is one complete spoken sentence of {wps_min}-{wps_max} words. '
             'Plain spoken text, no stage directions, no sound cues, no speaker labels.\n'
             '- "mood": 1-3 lowercase words describing the emotional tone. IMPORTANT: Choose mood words that match the story energy. Use words like: dramatic, tense, epic, mysterious, curious, dark, suspense, scary, horror, action, funny, comedy, playful, energetic, exciting, calm, peaceful, relaxing, chill, soft, gentle, warm, cozy, romantic, nostalgic, dreamy, sad, melancholic, happy, uplifting, inspiring.\\n'
-            '- "visuals": EXACTLY 14 objects — one per narration sentence, so the whole script has a matching visual. Each object has exactly one field: {"search_query": "stock footage search phrase"}. The visuals array is in the same order as the narration sentences, so sentence 1 matches visual 1, sentence 2 matches visual 2, and so on. Give every sentence a visual; do not reuse the same visual twice.\\n'
+            f'- "visuals": EXACTLY {segment_count} objects — one per narration sentence, so the whole script has a matching visual. Each object has exactly one field: {{"search_query": "stock footage search phrase"}}. The visuals array is in the same order as the narration sentences, so sentence 1 matches visual 1, sentence 2 matches visual 2, and so on. Give every sentence a visual; do not reuse the same visual twice.\\n'
             "FINAL CHECK BEFORE ANSWERING\n"
-            "1. narration_sentences contains exactly 14 complete sentences.\n"
+            f"1. narration_sentences contains exactly {segment_count} complete sentences.\n"
             f"2. Each sentence should be {wps_min}-{wps_max} words. Total narration should be around {word_min}-{word_max} words (approximately {target_seconds_str} seconds of spoken content at a natural pace).\n"
-            "3. The visuals array contains exactly 14 search queries — one per narration sentence, covering the entire narration.\n"
+            f"3. The visuals array contains exactly {segment_count} search queries — one per narration sentence, covering the entire narration.\n"
             "4. Every sentence carries real, verified information - no filler.\n"
-            "5. Every narration sentence is a complete, natural English sentence with correct spelling, apostrophes, punctuation, and spacing - no broken splits mid-thought and no awkward boundaries from the 14-sentence split.\n"
+            f"5. Every narration sentence is a complete, natural English sentence with correct spelling, apostrophes, punctuation, and spacing - no broken splits mid-thought and no awkward boundaries from the {segment_count}-sentence split.\n"
             "6. Every visual object contains exactly one field, search_query, with a practical Pexels search phrase - no extra fields, no context field.\n"
             "7. The topic comes from a uniform random draw of exactly one category from the list, decided BEFORE writing anything - never the easiest or most familiar category, never the category used by the previous episode, and never a topic pulled from an example sentence elsewhere in this prompt. Every listed category must stay equally likely.\n"
             "8. Each narration_sentences item is EXACTLY ONE complete sentence: one capital start, one terminal punctuation mark, never two statements fused without punctuation, never one thought split across two items, never quoted terms.\n"
@@ -188,9 +266,12 @@ class ContentGenerator(BaseAIService):
         prompt = self.build_prompt(instruction)
         self.log("Generating episode content...")
         # Grammar-constrained output: the schema forces the model to emit
-        # 14 narration sentence strings and 14 visual queries (one per sentence).
-        # a small local model counts reliably (unlike word counts in prose).
-        response = self.llm.generate(prompt, response_format=NARRATION_SCHEMA)
+        # segment_count narration sentence strings and segment_count visual
+        # queries (one per sentence). A small local model counts reliably
+        # (unlike word counts in prose).
+        response = self.llm.generate(
+            prompt, response_format=build_schema(self.segment_count())
+        )
         content = self.parse_content(response)
         if content is None:
             raise ContentGenerationError("The AI response could not be parsed into valid episode content.")

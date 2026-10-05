@@ -1,5 +1,4 @@
 {
-    "_comment": "Port this project's web server binds to. Must be unique across all projects in this workspace. runner.bat reads the same value so the Cloudflare tunnel points at the right server. APP_PORT overrides both.",
     "host": "0.0.0.0",
     "port": 8000
 }
