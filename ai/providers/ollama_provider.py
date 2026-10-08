@@ -52,7 +52,8 @@ class OllamaProvider:
     def generate(
         self,
         prompt,
-        response_format=None
+        response_format=None,
+        system_prompt=None
     ):
 
         self.log(
@@ -66,6 +67,9 @@ class OllamaProvider:
             "stream": False,
             "think": self.thinking
         }
+
+        if system_prompt:
+            request_data["system"] = system_prompt
 
         if isinstance(
             self.options,
@@ -81,6 +85,17 @@ class OllamaProvider:
             request_data["format"] = (
                 response_format
             )
+
+        self.log(
+            "Ollama request boundary: model="
+            + str(request_data.get("model"))
+            + " system_present="
+            + str(bool(request_data.get("system")))
+            + " system_chars="
+            + str(len(request_data.get("system", "")))
+            + " prompt_chars="
+            + str(len(request_data.get("prompt", "")))
+        )
 
         try:
 

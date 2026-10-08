@@ -258,7 +258,8 @@ class CuriousPipeline:
 
         write_content_files(
             episode_directory,
-            content
+            content,
+            self.content_generator.last_source_material,
         )
 
         self._notify(

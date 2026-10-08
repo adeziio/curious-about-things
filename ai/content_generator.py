@@ -2,6 +2,8 @@ import json
 import re
 from pathlib import Path
 
+import requests
+
 from ai.base_ai_service import BaseAIService
 from ai.providers.ollama_provider import OllamaProvider
 
@@ -15,6 +17,27 @@ class ContentGenerationError(RuntimeError):
 SECONDS_PER_VISUAL = 60 / 14
 
 DEFAULT_TARGET_SECONDS = 60
+
+WIKIPEDIA_CANDIDATE_COUNT = 25
+# One API call must return every candidate: the MediaWiki API serves at
+# most ONE whole-article extract per request (exlimit is silently lowered
+# to 1), so candidates are requested as lead sections (exintro), which also
+# gives every candidate the same summary-length basis for the topic choice.
+WIKIPEDIA_RANDOM_API = (
+    "https://en.wikipedia.org/w/api.php?"
+    "action=query&generator=random&grnnamespace=0"
+    f"&grnlimit={WIKIPEDIA_CANDIDATE_COUNT}"
+    "&prop=extracts&explaintext=1&exintro=1"
+    f"&exlimit={WIKIPEDIA_CANDIDATE_COUNT}&format=json"
+)
+WIKIPEDIA_USER_AGENT = "CuriousAboutThings/1.0 (content generation)"
+
+# How much of each candidate the topic-selection call sees. A random
+# article's lead can run to tens of KB, so the preview is sliced to keep
+# the pick prompt well inside the model's context window. The chosen
+# article's FULL extract - not this preview - is what feeds the episode's
+# source material below.
+SELECTION_PREVIEW_CHARS = 1200
 
 # A floor on the sentence blueprint, not a tuning setting: sentence_blueprint()
 # spends 7 sentences on fixed beats (hook, setup, reveal, twist, closing), so
@@ -111,6 +134,24 @@ def build_schema(segment_count):
         "required": ["title", "summary", "narration_sentences", "mood", "visuals"],
     }
 
+def build_selection_schema(candidate_count):
+    """
+    Reply shape for the topic-selection call, enforced by Ollama's
+    structured-output mode. Grammar-constraining the response to a single
+    integer in 1..candidate_count means the pick cannot come back as free
+    text, so one parse is all the selection step needs.
+    """
+    return {
+        "type": "object",
+        "properties": {
+            "choice": {
+                "type": "integer",
+                "enum": list(range(1, candidate_count + 1)),
+            }
+        },
+        "required": ["choice"],
+    }
+
 # Function words that cannot end a sentence. A narration item that stops
 # on one of these was cut in half by the structured output ("...connected
 # underground through") and its continuation is the next item, so the two
@@ -136,11 +177,78 @@ class ContentGenerator(BaseAIService):
         self.llm = OllamaProvider(config)
         self.channel_config = config["content"]
         self.generation_config = self.channel_config.get("content_generation", {})
+        self.last_source_material = ""
 
     def format_bullets(self, values):
         if not isinstance(values, list):
             return ""
         return "\n".join(f"- {str(v).strip()}" for v in values if str(v).strip())
+
+    def random_wikipedia_candidates(self):
+        """
+        Fetch WIKIPEDIA_CANDIDATE_COUNT random articles in ONE API call.
+
+        Returns a list of (title, extract) pairs. The API only honors
+        exlimit > 1 for intro extracts, which is why the URL requests
+        exintro; whole-article mode would silently return just one
+        extractable page and break the multi-candidate choice.
+        """
+        response = requests.get(
+            WIKIPEDIA_RANDOM_API,
+            headers={"User-Agent": WIKIPEDIA_USER_AGENT},
+            timeout=30,
+        )
+        response.raise_for_status()
+        pages = response.json()["query"]["pages"]
+        candidates = []
+        for page in pages.values():
+            title = page.get("title", "")
+            extract = page.get("extract", "")
+            if title and extract:
+                candidates.append((title, extract))
+        return candidates
+
+    def choose_wikipedia_article(self, candidates):
+        """
+        One Ollama call: have the model pick the most interesting and
+        curiosity-provoking candidate. Returns the chosen (title, extract).
+
+        The reply is grammar-constrained to an integer in 1..N, so it is
+        always parseable; if a reply still fails to parse, the first
+        candidate is used rather than retrying (no retry logic here).
+        """
+        listing = "\n\n".join(
+            f"CANDIDATE {index}\nTitle: {title}\n{extract[:SELECTION_PREVIEW_CHARS]}"
+            for index, (title, extract) in enumerate(candidates, 1)
+        )
+        prompt = (
+            "TOPIC SELECTION\n"
+            "You are choosing the source article for the next episode of a "
+            "short-form video channel that makes genuinely fascinating "
+            "educational content. From the numbered Wikipedia article "
+            "candidates below, choose the ONE that is most interesting and "
+            "curiosity-provoking for a general audience: the most surprising, "
+            "unusual, or rich-in-reveal subject that can carry an engaging "
+            "short story built only from facts in the article. Judge each "
+            "candidate's topic and content, not its writing style.\n\n"
+            f"{listing}\n\n"
+            f"Respond with the number of your chosen candidate (1-{len(candidates)})."
+        )
+        response = self.llm.generate(
+            prompt,
+            response_format=build_selection_schema(len(candidates)),
+        )
+        try:
+            choice = int(json.loads(response)["choice"])
+        except (json.JSONDecodeError, TypeError, KeyError, ValueError):
+            choice = 1
+        if not 1 <= choice <= len(candidates):
+            choice = 1
+        title, extract = candidates[choice - 1]
+        self.log(
+            f"Selected Wikipedia candidate {choice}/{len(candidates)}: {title}"
+        )
+        return title, extract
 
     def segment_count(self):
         """
@@ -167,7 +275,6 @@ class ContentGenerator(BaseAIService):
         ch = self.channel_config.get("channel", {})
         name = str(ch.get("name", "Curious About Things"))
         desc = str(ch.get("channel_description", ch.get("description", "")))
-        topics = self.format_bullets(c.get("topics", []))
         storytelling = self.format_bullets(c.get("storytelling", []))
         narration_rules = self.format_bullets(c.get("narration_rules", []))
         visual_rules = self.format_bullets(c.get("visual_rules", []))
@@ -182,6 +289,8 @@ class ContentGenerator(BaseAIService):
         word_min = int(word_target * 0.85)
         word_max = int(word_target * 1.15)
         segment_count = self.segment_count()
+        candidates = self.random_wikipedia_candidates()
+        wikipedia_title, wikipedia_content = self.choose_wikipedia_article(candidates)
         per_sentence = word_target // segment_count
         wps_min = max(9, per_sentence - 1)
         wps_max = per_sentence + 3
@@ -213,47 +322,65 @@ class ContentGenerator(BaseAIService):
             "Follow this blueprint exactly:\n"
             f"{blueprint}"
         )
+        source_material = (
+            "WIKIPEDIA SOURCE MATERIAL - FACTUAL SOURCE OF TRUTH\n"
+            f"Article title: {wikipedia_title}\n"
+            "This article is the only factual source for the episode. Use only facts explicitly "
+            "supported by the article text below. Choose the strongest interesting facts rather than "
+            "summarizing the entire article. Do not use Qwen's background knowledge to fill gaps, even "
+            "when a detail is commonly known or likely true. Do not add outside examples, comparisons, "
+            "analogies, historical connections, hypothetical scenarios, or conclusions unless the article "
+            "supports them. Do not exaggerate a supported fact into a stronger unsupported claim. Creative "
+            "storytelling and engaging wording are encouraged, but every underlying factual claim must be "
+            "traceable to this article. If the article does not contain enough material for an interesting "
+            "story, use only the strongest supported facts available rather than inventing material.\n\n"
+            f"{wikipedia_content}\n"
+        )
+        self.last_source_material = source_material
         topic_selection = (
-            "RANDOM CATEGORY DRAW (MANDATORY STEP 1)\\n"
-            "Before writing anything, randomly select exactly ONE category from the list below. "
-            "Use a uniform random pick: every listed category has exactly the same chance, "
-            "including categories that feel less familiar or less obvious. Never favor a "
-            "category, topic, or subject because it is easier to explain, more common, or "
-            "more visually convenient. Do not re-roll or exclude any valid category.\\n"
-            "Then choose one specific, genuinely interesting topic WITHIN that selected category. "
-            "Treat all valid topics within the category as equally eligible rather than repeatedly "
-            "choosing the most familiar examples. Avoid the exact topic and any closely related "
-            "topic used recently; do not make a new episode about the same subject family with "
-            "only a different angle. When several topics are equally suitable, choose the more "
-            "unexpected and less predictable one. Apply the existing entertainment -> curiosity "
-            "-> information direction inside the category.\\n"
+            "SOURCE-BOUND TOPIC SELECTION\n"
+            "Use the supplied Wikipedia article as the topic and select its most interesting supported "
+            "angle. Do not select a separate topic from the category list, do not use the list to add "
+            "facts, and do not fill any gap with background knowledge.\n"
         )
         return (
             "You are the creative writer for \"" + name + "\", a short-form video channel "
             "about anything genuinely fascinating.\n\n" +
             length_requirement +
+            "\n\n" + source_material +
             "\nCHANNEL DESCRIPTION\n" + desc +
             "\n\nTOPIC RESPONSIBILITY\n" + topic_selection +
-            "\nTOPIC FREEDOM\nThese are the categories to pick from, with roughly equal probability "
-            "across episodes (the requested 19):\n" + topics +
             "\n\n" + instruction_section +
             "STORYTELLING PATTERN (guideline, not a rigid formula - adapt it naturally "
             "to the topic):\n" + storytelling +
             "\n\nNARRATION RULES\n" + narration_rules +
             "\n\nVISUAL SEARCH QUERY RULES\n" + visual_rules +
             "\n\nCREATIVE DIRECTION\n" + creative_directions +
-            "\n\nVARIETY REQUIREMENTS (CRITICAL)\n"            "Every episode must feel distinct. Do not fall into repeated templates for topic, title, or opening.\n"            "- TOPIC: Draw a genuinely random category. Do not default to the viewer's own body, biology, or health just because they feel personal - most episodes should be about something OUTSIDE the viewer (animals, space, history, objects, places, ideas, phenomena).\n"            "- TITLE: Never reuse the same title formula. Vary between a question, a bold claim, a How/Why phrase, a surprising statement, a number, or a short intriguing phrase. Banished templates: The Secret Life of..., The Hidden Truth About..., The Untold Story of..., What Happens When..., Everything You Know About... is Wrong.\n"            "- OPENING: The first sentence must not follow a formula. Do NOT open with Your X does more than you realize, You never noticed..., Most people do not know..., or Did you know.... Each hook should land differently - a vivid scene, a counterintuitive claim, a surprising number, a question, a historical moment, a weird comparison.\n"            "- NARRATIVE ARC: Do not force every episode through the same emotional beats. Some should build dread, others wonder, others humor, others awe. Let the topic dictate the arc.\n"            "- MOOD: Choose a mood that fits THIS topic. Do not default to curious mysterious every time.\n"
+            "\n\nFINAL SOURCE BOUNDARY (HIGHEST PRIORITY)\n"
+            "Before returning the answer, remove any factual statement that cannot be directly supported "
+            "by the supplied Wikipedia article. Do not rely on background knowledge to complete, explain, "
+            "or connect the article. Do not add outside examples, comparisons, analogies, historical "
+            "connections, hypothetical scenarios, inferred conclusions, or stronger claims. If a detail "
+            "is missing from the article, leave it out. Keep only the strongest supported facts and use "
+            "creative wording only to present those facts.\n"
+            "\n\nVARIETY REQUIREMENTS (CRITICAL)\n"
+            "Every episode must feel distinct. Do not fall into repeated templates for title or opening.\n"
+            "- TOPIC: The supplied Wikipedia article is the only topic source. Do not replace it with a separate category or subject.\n"
+            "- TITLE: Never reuse the same title formula. Vary between a question, a bold claim, a How/Why phrase, a surprising statement, a number, or a short intriguing phrase. Banished templates: The Secret Life of..., The Hidden Truth About..., The Untold Story of..., What Happens When..., Everything You Know About... is Wrong.\n"
+            "- OPENING: The first sentence must not follow a formula. Do NOT open with Your X does more than you realize, You never noticed..., Most people do not know..., or Did you know.... Each hook should land differently - a vivid scene, a counterintuitive claim, a surprising number, a question, a historical moment, a weird comparison.\n"
+            "- NARRATIVE ARC: Do not force every episode through the same emotional beats. Some should build dread, others wonder, others humor, others awe. Let the topic dictate the arc.\n"
+            "- MOOD: Choose a mood that fits THIS topic. Do not default to curious mysterious every time.\n"
             '- "title": a short, clickable video title. Must be a properly punctuated phrase with correct capitalization, spacing, and any necessary punctuation (apostrophes, commas, periods). No run-on fragments or missing punctuation.\n'
             '- "summary": a one-sentence teaser of the episode. Must be a single, complete, properly punctuated sentence with correct capitalization, spacing, and terminal punctuation. No run-on sentences or missing punctuation between clauses.\n'
             f'- "narration_sentences": an array of EXACTLY {segment_count} strings - the narration split '
             f'into its {segment_count} sentences. Each string is one complete spoken sentence of {wps_min}-{wps_max} words. '
             'Plain spoken text, no stage directions, no sound cues, no speaker labels.\n'
-            '- "mood": 1-3 lowercase words describing the emotional tone. IMPORTANT: Choose mood words that match the story energy. Use words like: dramatic, tense, epic, mysterious, curious, dark, suspense, scary, horror, action, funny, comedy, playful, energetic, exciting, calm, peaceful, relaxing, chill, soft, gentle, warm, cozy, romantic, nostalgic, dreamy, sad, melancholic, happy, uplifting, inspiring.\\n'
-            f'- "visuals": EXACTLY {segment_count} objects — one per narration sentence, so the whole script has a matching visual. Each object has exactly one field: {{"search_query": "stock footage search phrase"}}. The visuals array is in the same order as the narration sentences, so sentence 1 matches visual 1, sentence 2 matches visual 2, and so on. Give every sentence a visual; do not reuse the same visual twice.\\n'
-            "ACCURACY AND PROOFREADING\\n"
+            '- "mood": 1-3 lowercase words describing the emotional tone. IMPORTANT: Choose mood words that match the story energy. Use words like: dramatic, tense, epic, mysterious, curious, dark, suspense, scary, horror, action, funny, comedy, playful, energetic, exciting, calm, peaceful, relaxing, chill, soft, gentle, warm, cozy, romantic, nostalgic, dreamy, sad, melancholic, happy, uplifting, inspiring.\n'
+            f'- "visuals": EXACTLY {segment_count} objects — one per narration sentence, so the whole script has a matching visual. Each object has exactly one field: {{"search_query": "stock footage search phrase"}}. The visuals array is in the same order as the narration sentences, so sentence 1 matches visual 1, sentence 2 matches visual 2, and so on. Give every sentence a visual; do not reuse the same visual twice.\n'
+            "ACCURACY AND PROOFREADING\n"
             "Write clean, correctly spelled content with no typos, accidental punctuation, or malformed words. "
             "Before returning the final output, carefully proofread the entire generated content for spelling and punctuation errors. "
-            "Do not introduce accidental changes to quoted or source-derived text.\\n"
+            "Do not introduce accidental changes to quoted or source-derived text.\n"
             "FINAL CHECK BEFORE ANSWERING\n"
             f"1. narration_sentences contains exactly {segment_count} complete sentences.\n"
             f"2. Each sentence should be {wps_min}-{wps_max} words. Total narration should be around {word_min}-{word_max} words (approximately {target_seconds_str} seconds of spoken content at a natural pace).\n"
@@ -261,9 +388,11 @@ class ContentGenerator(BaseAIService):
             "4. Every sentence carries real, verified information - no filler.\n"
             f"5. Every narration sentence is a complete, natural English sentence with correct spelling, apostrophes, punctuation, and spacing - no broken splits mid-thought and no awkward boundaries from the {segment_count}-sentence split.\n"
             "6. Every visual object contains exactly one field, search_query, with a practical Pexels search phrase - no extra fields, no context field.\n"
-            "7. The topic comes from a uniform random draw of exactly one valid category from the list, decided BEFORE writing anything. Every valid category and every valid topic within the selected category must be treated as equally eligible; do not favor easy, familiar, common, or highly searchable subjects, and do not re-roll or exclude a valid category. Avoid exact and closely related repeats from recent episodes, and prefer an unexpected alternative when candidates are otherwise equally suitable. Never choose a topic merely because it appeared in an example sentence elsewhere in this prompt.\\n"
+            "7. The topic and every factual claim come only from the supplied Wikipedia article. Do not use Qwen's background knowledge, outside examples, comparisons, analogies, historical connections, hypothetical scenarios, or unsupported conclusions. Do not exaggerate article facts.\n"
             "8. Each narration_sentences item is EXACTLY ONE complete sentence: one capital start, one terminal punctuation mark, never two statements fused without punctuation, never one thought split across two items, never quoted terms.\n"
             "9. The title and summary are properly punctuated: correct capitalization, spacing, apostrophes, and terminal punctuation. The summary must be exactly one complete sentence - if it contains more than one independent thought, split them into separate sentences with a period and a capital letter.\n"
+            "10. SOURCE CONTRACT: The supplied Wikipedia article below is the only factual source. The title, summary, narration, and visual queries must be about that article. Use only facts explicitly stated or directly supported by that article. Do not use Qwen's background knowledge. Do not add outside examples, comparisons, analogies, historical connections, hypothetical scenarios, inferred conclusions, or stronger claims. Do not use facts about a different subject. If the article lacks material, use fewer distinct facts rather than inventing any.\n"
+            f"SOURCE ARTICLE THAT MUST GOVERN THE ANSWER\nArticle title: {wikipedia_title}\n{wikipedia_content}\n"
         )
 
     def generate(self, instruction=None):
@@ -274,7 +403,17 @@ class ContentGenerator(BaseAIService):
         # queries (one per sentence). A small local model counts reliably
         # (unlike word counts in prose).
         response = self.llm.generate(
-            prompt, response_format=build_schema(self.segment_count())
+            prompt,
+            response_format=build_schema(self.segment_count()),
+            system_prompt=(
+                "You are restricted to the Wikipedia article supplied below as the only factual "
+                "source. Every factual claim in your response must be explicitly supported by that "
+                "article. Do not use background knowledge, outside examples, comparisons, analogies, "
+                "historical connections, hypothetical scenarios, inferred conclusions, or stronger "
+                "claims. Do not write about any other subject. If the article lacks enough material, "
+                "use only the strongest supported facts and do not invent anything.\n\n"
+                + self.last_source_material
+            ),
         )
         content = self.parse_content(response)
         if content is None:
@@ -624,7 +763,7 @@ class ContentGenerator(BaseAIService):
                 seen.append(word)
         return seen[:3]
 
-def write_content_files(episode_directory, content):
+def write_content_files(episode_directory, content, source_material=""):
     episode_directory = Path(episode_directory)
     episode_directory.mkdir(parents=True, exist_ok=True)
     content_path = episode_directory / "content.json"
@@ -641,6 +780,7 @@ def write_content_files(episode_directory, content):
         f"PROMPT: {content['narration']}",
         f"SUMMARY: {content['summary']}",
         divider,
+        source_material.strip(),
         ""
     ]
     prompt_path.write_text("\n".join(lines), encoding="utf-8")
