@@ -250,6 +250,10 @@ class ContentGenerator(BaseAIService):
             'Plain spoken text, no stage directions, no sound cues, no speaker labels.\n'
             '- "mood": 1-3 lowercase words describing the emotional tone. IMPORTANT: Choose mood words that match the story energy. Use words like: dramatic, tense, epic, mysterious, curious, dark, suspense, scary, horror, action, funny, comedy, playful, energetic, exciting, calm, peaceful, relaxing, chill, soft, gentle, warm, cozy, romantic, nostalgic, dreamy, sad, melancholic, happy, uplifting, inspiring.\\n'
             f'- "visuals": EXACTLY {segment_count} objects — one per narration sentence, so the whole script has a matching visual. Each object has exactly one field: {{"search_query": "stock footage search phrase"}}. The visuals array is in the same order as the narration sentences, so sentence 1 matches visual 1, sentence 2 matches visual 2, and so on. Give every sentence a visual; do not reuse the same visual twice.\\n'
+            "ACCURACY AND PROOFREADING\\n"
+            "Write clean, correctly spelled content with no typos, accidental punctuation, or malformed words. "
+            "Before returning the final output, carefully proofread the entire generated content for spelling and punctuation errors. "
+            "Do not introduce accidental changes to quoted or source-derived text.\\n"
             "FINAL CHECK BEFORE ANSWERING\n"
             f"1. narration_sentences contains exactly {segment_count} complete sentences.\n"
             f"2. Each sentence should be {wps_min}-{wps_max} words. Total narration should be around {word_min}-{word_max} words (approximately {target_seconds_str} seconds of spoken content at a natural pace).\n"
