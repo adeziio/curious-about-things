@@ -18,7 +18,7 @@ SECONDS_PER_VISUAL = 60 / 14
 
 DEFAULT_TARGET_SECONDS = 60
 
-WIKIPEDIA_CANDIDATE_COUNT = 25
+WIKIPEDIA_CANDIDATE_COUNT = 100
 # One API call must return every candidate: the MediaWiki API serves at
 # most ONE whole-article extract per request (exlimit is silently lowered
 # to 1), so candidates are requested as lead sections (exintro), which also
@@ -224,13 +224,17 @@ class ContentGenerator(BaseAIService):
         prompt = (
             "TOPIC SELECTION\n"
             "You are choosing the source article for the next episode of a "
-            "short-form video channel that makes genuinely fascinating "
-            "educational content. From the numbered Wikipedia article "
-            "candidates below, choose the ONE that is most interesting and "
-            "curiosity-provoking for a general audience: the most surprising, "
-            "unusual, or rich-in-reveal subject that can carry an engaging "
-            "short story built only from facts in the article. Judge each "
-            "candidate's topic and content, not its writing style.\n\n"
+            "short-form video channel focused primarily on entertainment while "
+            "teaching the viewer something interesting. From the numbered Wikipedia "
+            "article candidates below, choose the ONE that would make the most "
+            "entertaining and curiosity-provoking short video for a general audience. "
+            "Prioritize subjects that are surprising, unusual, fascinating, "
+            "unexpected, mysterious, visually interesting, or likely to make someone "
+            "think, 'I didn't know that.' The goal is ENTERTAINMENT first, while "
+            "giving the viewer something genuinely interesting to learn. Do not favor "
+            "a topic simply because it sounds academic, important, or traditionally "
+            "educational. Judge each candidate's topic and content, not its writing "
+            "style.\n\n"
             f"{listing}\n\n"
             f"Respond with the number of your chosen candidate (1-{len(candidates)})."
         )
