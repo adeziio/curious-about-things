@@ -359,6 +359,44 @@ class ContentGenerator(BaseAIService):
             "angle. Do not select a separate topic from the category list, do not use the list to add "
             "facts, and do not fill any gap with background knowledge.\n"
         )
+        factual_storytelling = (
+            "FACTUAL STORYTELLING\n"
+            "Treat the supplied Wikipedia article as the complete factual boundary for the "
+            "story. You may make the narration entertaining, dramatic, and engaging through "
+            "wording, pacing, structure, and presentation, but do not invent explanations, "
+            "causes, purposes, motivations, comparisons, implications, or scientific "
+            "conclusions unless they are explicitly supported by the supplied source. Do not "
+            "add factual claims, explanations, causes, purposes, scientific interpretations, "
+            "conservation claims, or conclusions that go beyond what the source states. Do not "
+
+            "use Qwen's outside/background knowledge to fill gaps. Do not fill gaps using "
+            "general or background knowledge, and do not add generic "
+            "conservation or science claims that sound plausible but are not stated in the "
+            "article. If the article describes an unusual feature but does not explain why "
+            "it exists or what purpose it serves, simply describe the feature without "
+            "inventing an explanation for it. If the source states what something "
+            "is or does, describe only what the source supports. If the source does "
+            "not explain why something happens, do not invent an explanation for it. "
+            "Do not restate the same supported fact "
+            "as a broader or stronger claim, and do not generalize one example into a "
+            "universal rule unless the article states it. Every factual claim in the "
+            "narration must be supported by the supplied Wikipedia content.\n\n"
+            "Write every name exactly as it appears in the supplied article, preserving all "
+            "accented characters and diacritics. Never strip, replace, or anglicize "
+            "accents, and never let TTS-friendly spelling change a name: keep the "
+            "article's exact letters in the narration. For example, write S\u00e3o Tom\u00e9 with its "
+            "accents intact, never as S o Tom or Sao Tome.\n\n"
+            "Before returning the final narration, carefully proofread the entire response for:\n"
+            "- duplicated punctuation such as \",,\" or \"..\"\n"
+            "- missing spaces between words such as \"justfor\"\n"
+            "- malformed or accidentally merged words\n"
+            "- spelling errors\n"
+            "- other obvious typographical errors\n"
+            "The final narration should be clean, naturally written, and free of accidental "
+            "formatting or typing mistakes. For example, a recent episode wrongly contained: "
+            "\"Its story is not just about mabout machines,, it's about human ingenuity and "
+            "the pursuit of flight.\" Never return errors like these.\n\n"
+        )
         return (
             "You are the creative writer for \"" + name + "\", a short-form video channel "
             "about anything genuinely fascinating.\n\n" +
@@ -367,6 +405,7 @@ class ContentGenerator(BaseAIService):
             "\nCHANNEL DESCRIPTION\n" + desc +
             "\n\nTOPIC RESPONSIBILITY\n" + topic_selection +
             "\n\n" + instruction_section +
+            factual_storytelling +
             "STORYTELLING PATTERN (guideline, not a rigid formula - adapt it naturally "
             "to the topic):\n" + storytelling +
             "\n\nNARRATION RULES\n" + narration_rules +
@@ -482,7 +521,7 @@ class ContentGenerator(BaseAIService):
         # A colon is preserved too: clause colons were already turned into
         # commas above, so any colon left here is between digits (a clock
         # time like "3:30"), which is exactly what TTS should read.
-        s = re.sub(r"[^a-zA-Z0-9\s.,!?\-$%':]", " ", s)
+        s = re.sub(r"[^\w\s.,!?\-$%':]|_", " ", s)
         # Remove commas inside numbers ("200,000" -> "200000") so TTS
         # reads the full number instead of pausing mid-number
         s = re.sub(r"(?<=\d),(?=\d)", "", s)
@@ -499,7 +538,7 @@ class ContentGenerator(BaseAIService):
         # trillion" must not become "5. 8 trillion", which reads as a
         # sentence break and leaves "8 trillion" as a fragment.
         s = re.sub(r"\s+([.,!?])", r"\1", s)
-        s = re.sub(r"(?<!\d)([.,!?])(?=[a-zA-Z0-9])", r"\1 ", s)
+        s = re.sub(r"(?<!\d)([.,!?])(?=\w)", r"\1 ", s)
         # Clean up any double spaces created
         s = re.sub(r"\s+", " ", s).strip()
         # Remove trailing commas or artifacts before punctuation
@@ -561,10 +600,26 @@ class ContentGenerator(BaseAIService):
         s = str(text or "").strip()
         if not s:
             return s
-        # Shape 1: (not|aren't|isn't|doesn't|don't|won't|can't|isn't) just <NP> it's/they're
+        # Shape 1: (not|aren't|isn't|doesn't|don't|won't|can't) just <NP> it's/they're.
+        # Rebuild the match from its own pieces. The old lambda sliced group(0)
+        # with absolute match offsets (m.start(2)-m.start(1)), which cut
+        # mid-word and merged fragments: "not just about machines, it's"
+        # became "not just about mabout machines,, it's" - the exact artifact
+        # seen in episode narration. If the clause already ends in
+        # punctuation, keep its separator instead of stacking a comma.
+        def _insert_clause_comma(match):
+            prefix = match.group(0)[: match.start(1) - match.start(0)]
+            clause = match.group(1)
+            separator = (
+                " "
+                if clause.rstrip().endswith((",", ".", ";", ":", "?", "!"))
+                else ", "
+            )
+            return f"{prefix}{clause}{separator}{match.group(2)}"
+
         s = re.sub(
             r"\b(?:not|aren't|isn't|don't|doesn't|won't|can't)\s+just\b\s+(.+?)\s+(it's|they're|he's|she's|we're|you're)\b",
-            lambda m: f"{m.group(0)[:m.start(2)-m.start(1)]}{m.group(1)}, {m.group(2)}",
+            _insert_clause_comma,
             s,
             flags=re.IGNORECASE,
         )
