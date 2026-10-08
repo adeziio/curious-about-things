@@ -341,46 +341,30 @@ class ContentGenerator(BaseAIService):
         source_material = (
             "WIKIPEDIA SOURCE MATERIAL - FACTUAL SOURCE OF TRUTH\n"
             f"Article title: {wikipedia_title}\n"
-            "This article is the only factual source for the episode. Use only facts explicitly "
-            "supported by the article text below. Choose the strongest interesting facts rather than "
-            "summarizing the entire article. Do not use Qwen's background knowledge to fill gaps, even "
-            "when a detail is commonly known or likely true. Do not add outside examples, comparisons, "
-            "analogies, historical connections, hypothetical scenarios, or conclusions unless the article "
-            "supports them. Do not exaggerate a supported fact into a stronger unsupported claim. Creative "
-            "storytelling and engaging wording are encouraged, but every underlying factual claim must be "
-            "traceable to this article. If the article does not contain enough material for an interesting "
-            "story, use only the strongest supported facts available rather than inventing material.\n\n"
+            "This article is the only factual source for the episode. Follow the SINGLE "
+            "SOURCE-ACCURACY RULE below and pull its strongest interesting facts from here "
+            "rather than summarizing it in full.\n\n"
             f"{wikipedia_content}\n"
         )
         self.last_source_material = source_material
         topic_selection = (
             "SOURCE-BOUND TOPIC SELECTION\n"
-            "Use the supplied Wikipedia article as the topic and select its most interesting supported "
-            "angle. Do not select a separate topic from the category list, do not use the list to add "
-            "facts, and do not fill any gap with background knowledge.\n"
+            "The supplied Wikipedia article is the topic. Select its most interesting supported angle; "
+            "never swap in a subject from the category list.\n"
         )
         factual_storytelling = (
-            "FACTUAL STORYTELLING\n"
-            "Treat the supplied Wikipedia article as the complete factual boundary for the "
-            "story. You may make the narration entertaining, dramatic, and engaging through "
-            "wording, pacing, structure, and presentation, but do not invent explanations, "
-            "causes, purposes, motivations, comparisons, implications, or scientific "
-            "conclusions unless they are explicitly supported by the supplied source. Do not "
-            "add factual claims, explanations, causes, purposes, scientific interpretations, "
-            "conservation claims, or conclusions that go beyond what the source states. Do not "
-
-            "use Qwen's outside/background knowledge to fill gaps. Do not fill gaps using "
-            "general or background knowledge, and do not add generic "
-            "conservation or science claims that sound plausible but are not stated in the "
-            "article. If the article describes an unusual feature but does not explain why "
-            "it exists or what purpose it serves, simply describe the feature without "
-            "inventing an explanation for it. If the source states what something "
-            "is or does, describe only what the source supports. If the source does "
-            "not explain why something happens, do not invent an explanation for it. "
-            "Do not restate the same supported fact "
-            "as a broader or stronger claim, and do not generalize one example into a "
-            "universal rule unless the article states it. Every factual claim in the "
-            "narration must be supported by the supplied Wikipedia content.\n\n"
+            "SINGLE SOURCE-ACCURACY RULE (HIGHEST PRIORITY)\n"
+            "The supplied Wikipedia content is the factual source for the narration. Accurately "
+            "paraphrase those facts and present them creatively through wording, pacing, "
+            "structure, and delivery - but never change, contradict, or invent factual details.\n"
+            "- Do not add facts, explanations, causes, purposes, scientific interpretations, "
+            "conservation claims, or conclusions unless the article explicitly supports them.\n"
+            "- Do not fill gaps with background knowledge, even when a detail is commonly known "
+            "or likely true.\n"
+            "- If the article states what something is or does, describe only that. If it does "
+            "not explain why something happens, say only that it happens - never invent a reason.\n"
+            "- Never restate a supported fact as a broader or stronger claim.\n"
+            "- Every factual claim in the narration must be traceable to the supplied article.\n\n"
             "Write every name exactly as it appears in the supplied article, preserving all "
             "accented characters and diacritics. Never strip, replace, or anglicize "
             "accents, and never let TTS-friendly spelling change a name: keep the "
@@ -411,13 +395,6 @@ class ContentGenerator(BaseAIService):
             "\n\nNARRATION RULES\n" + narration_rules +
             "\n\nVISUAL SEARCH QUERY RULES\n" + visual_rules +
             "\n\nCREATIVE DIRECTION\n" + creative_directions +
-            "\n\nFINAL SOURCE BOUNDARY (HIGHEST PRIORITY)\n"
-            "Before returning the answer, remove any factual statement that cannot be directly supported "
-            "by the supplied Wikipedia article. Do not rely on background knowledge to complete, explain, "
-            "or connect the article. Do not add outside examples, comparisons, analogies, historical "
-            "connections, hypothetical scenarios, inferred conclusions, or stronger claims. If a detail "
-            "is missing from the article, leave it out. Keep only the strongest supported facts and use "
-            "creative wording only to present those facts.\n"
             "\n\nVARIETY REQUIREMENTS (CRITICAL)\n"
             "Every episode must feel distinct. Do not fall into repeated templates for title or opening.\n"
             "- TOPIC: The supplied Wikipedia article is the only topic source. Do not replace it with a separate category or subject.\n"
@@ -443,10 +420,9 @@ class ContentGenerator(BaseAIService):
             "4. Every sentence carries real, verified information - no filler.\n"
             f"5. Every narration sentence is a complete, natural English sentence with correct spelling, apostrophes, punctuation, and spacing - no broken splits mid-thought and no awkward boundaries from the {segment_count}-sentence split.\n"
             "6. Every visual object contains exactly one field, search_query, with a practical Pexels search phrase - no extra fields, no context field.\n"
-            "7. The topic and every factual claim come only from the supplied Wikipedia article. Do not use Qwen's background knowledge, outside examples, comparisons, analogies, historical connections, hypothetical scenarios, or unsupported conclusions. Do not exaggerate article facts.\n"
+            "7. The topic and every factual claim obey the SINGLE SOURCE-ACCURACY RULE: they come only from the supplied Wikipedia article, with no background knowledge, outside examples, comparisons, analogies, historical connections, hypothetical scenarios, unsupported conclusions, or exaggerated article facts.\n"
             "8. Each narration_sentences item is EXACTLY ONE complete sentence: one capital start, one terminal punctuation mark, never two statements fused without punctuation, never one thought split across two items, never quoted terms.\n"
             "9. The title and summary are properly punctuated: correct capitalization, spacing, apostrophes, and terminal punctuation. The summary must be exactly one complete sentence - if it contains more than one independent thought, split them into separate sentences with a period and a capital letter.\n"
-            "10. SOURCE CONTRACT: The supplied Wikipedia article below is the only factual source. The title, summary, narration, and visual queries must be about that article. Use only facts explicitly stated or directly supported by that article. Do not use Qwen's background knowledge. Do not add outside examples, comparisons, analogies, historical connections, hypothetical scenarios, inferred conclusions, or stronger claims. Do not use facts about a different subject. If the article lacks material, use fewer distinct facts rather than inventing any.\n"
             f"SOURCE ARTICLE THAT MUST GOVERN THE ANSWER\nArticle title: {wikipedia_title}\n{wikipedia_content}\n"
         )
 
@@ -461,12 +437,9 @@ class ContentGenerator(BaseAIService):
             prompt,
             response_format=build_schema(self.segment_count()),
             system_prompt=(
-                "You are restricted to the Wikipedia article supplied below as the only factual "
-                "source. Every factual claim in your response must be explicitly supported by that "
-                "article. Do not use background knowledge, outside examples, comparisons, analogies, "
-                "historical connections, hypothetical scenarios, inferred conclusions, or stronger "
-                "claims. Do not write about any other subject. If the article lacks enough material, "
-                "use only the strongest supported facts and do not invent anything.\n\n"
+                "The supplied Wikipedia article is your only factual source. Follow its SINGLE "
+                "SOURCE-ACCURACY RULE: paraphrase its facts accurately and creatively, never "
+                "invent or contradict them, and write about no other subject.\n\n"
                 + self.last_source_material
             ),
         )
