@@ -216,17 +216,17 @@ class ContentGenerator(BaseAIService):
         topic_selection = (
             "RANDOM CATEGORY DRAW (MANDATORY STEP 1)\\n"
             "Before writing anything, randomly select exactly ONE category from the list below. "
-            "Use a uniform random pick - never your favorite or the easiest category. "
-            "Do not use any prior episode, previous title, or history to decide; this is an "
-            "independent random draw for this episode only. Give every category a fair chance, "
-            "including uncommon ones like Language, Food, Geography, Ancient civilizations, "
-            "Strange inventions, or Weird facts about normal life. If the draw lands on Human "
-            "body, Biology, or Science, re-roll once and pick a different category instead — "
-            "recent episodes stayed heavily in that family, so this episode must come from a "
-            "clearly different category.\\n"
-            "Then choose the most interesting, surprising fact or angle WITHIN that selected "
-            "category - something real that creates a 'wait, what?' reaction. Apply the existing "
-            "entertainment -> curiosity -> information direction inside the category.\\n"
+            "Use a uniform random pick: every listed category has exactly the same chance, "
+            "including categories that feel less familiar or less obvious. Never favor a "
+            "category, topic, or subject because it is easier to explain, more common, or "
+            "more visually convenient. Do not re-roll or exclude any valid category.\\n"
+            "Then choose one specific, genuinely interesting topic WITHIN that selected category. "
+            "Treat all valid topics within the category as equally eligible rather than repeatedly "
+            "choosing the most familiar examples. Avoid the exact topic and any closely related "
+            "topic used recently; do not make a new episode about the same subject family with "
+            "only a different angle. When several topics are equally suitable, choose the more "
+            "unexpected and less predictable one. Apply the existing entertainment -> curiosity "
+            "-> information direction inside the category.\\n"
         )
         return (
             "You are the creative writer for \"" + name + "\", a short-form video channel "
@@ -261,7 +261,7 @@ class ContentGenerator(BaseAIService):
             "4. Every sentence carries real, verified information - no filler.\n"
             f"5. Every narration sentence is a complete, natural English sentence with correct spelling, apostrophes, punctuation, and spacing - no broken splits mid-thought and no awkward boundaries from the {segment_count}-sentence split.\n"
             "6. Every visual object contains exactly one field, search_query, with a practical Pexels search phrase - no extra fields, no context field.\n"
-            "7. The topic comes from a uniform random draw of exactly one category from the list, decided BEFORE writing anything - never the easiest or most familiar category, never the category used by the previous episode, and never a topic pulled from an example sentence elsewhere in this prompt. Every listed category must stay equally likely.\n"
+            "7. The topic comes from a uniform random draw of exactly one valid category from the list, decided BEFORE writing anything. Every valid category and every valid topic within the selected category must be treated as equally eligible; do not favor easy, familiar, common, or highly searchable subjects, and do not re-roll or exclude a valid category. Avoid exact and closely related repeats from recent episodes, and prefer an unexpected alternative when candidates are otherwise equally suitable. Never choose a topic merely because it appeared in an example sentence elsewhere in this prompt.\\n"
             "8. Each narration_sentences item is EXACTLY ONE complete sentence: one capital start, one terminal punctuation mark, never two statements fused without punctuation, never one thought split across two items, never quoted terms.\n"
             "9. The title and summary are properly punctuated: correct capitalization, spacing, apostrophes, and terminal punctuation. The summary must be exactly one complete sentence - if it contains more than one independent thought, split them into separate sentences with a period and a capital letter.\n"
         )
@@ -349,7 +349,43 @@ class ContentGenerator(BaseAIService):
         s = re.sub(r"\s+", " ", s).strip()
         # Remove trailing commas or artifacts before punctuation
         s = re.sub(r"\s*,\s*([.!?])", r"\1", s)
+        s = self._repair_generation_artifacts(s)
         return s
+
+    def _repair_generation_artifacts(self, text):
+        """Repair conservative, clearly accidental LLM text artifacts.
+
+        Local models occasionally emit duplicated words or insert a short
+        fragment between a word and its duplicate (for example,
+        ``social ba social behavior``). These repairs are intentionally narrow
+        so normal repetition and stylistic phrasing are left alone.
+        """
+        s = str(text or "")
+        if not s:
+            return s
+
+        # Remove a duplicated word: "the the answer" -> "the answer".
+        s = re.sub(
+            r"\b([a-zA-Z]+)(\s+\1\b)+",
+            r"\1",
+            s,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove a short accidental fragment between duplicated words:
+        # "social ba social behavior" -> "social behavior".
+        s = re.sub(
+            r"\b([a-zA-Z]+)\s+[a-zA-Z]{1,3}\s+\1\b",
+            r"\1",
+            s,
+            flags=re.IGNORECASE,
+        )
+
+        # Collapse punctuation runs left by malformed model output.
+        s = re.sub(r"([.,!?])\1+", r"\1", s)
+        s = re.sub(r"\s+([,.;:!?])", r"\1", s)
+        s = re.sub(r"([,.;:!?])(?=[A-Za-z])", r"\1 ", s)
+        return re.sub(r"\s+", " ", s).strip()
 
     def _punctuate_fused_clauses(self, text):
         """Restore commas that the structured output occasionally drops.
