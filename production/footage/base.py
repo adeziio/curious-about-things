@@ -97,7 +97,8 @@ class VideoProvider:
 
     @staticmethod
     def slugify(
-        query
+        query,
+        index=None
     ):
 
         slug = "".join(
@@ -112,6 +113,12 @@ class VideoProvider:
             for part in slug.split("-")
             if part
         )
+
+        # Numeric prefix is the standard: prefix each visual/list
+        # element's folder with its sequence number (e.g.
+        # "1-style-realistic-...") for easy searching and ordering.
+        if index is not None:
+            slug = f"{index}-{slug}"
 
         return (
             slug[:60]

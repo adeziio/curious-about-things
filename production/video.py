@@ -475,7 +475,10 @@ class ProductionPipeline:
 
             query_directory = (
                 footage_directory
-                / provider.slugify(query)
+                / provider.slugify(
+                    query,
+                    index=index
+                )
             )
 
             try:
