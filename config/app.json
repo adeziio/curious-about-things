@@ -18,11 +18,11 @@
         },
         "music": {
             "enabled": true,
-            "volume": 0.08
+            "volume": 0.1
         },
         "sfx": {
             "enabled": false,
-            "volume": 0.6
+            "volume": 0.5
         }
     },
     "captions": {
